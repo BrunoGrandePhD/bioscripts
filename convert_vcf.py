@@ -37,7 +37,8 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--format', '-f', help='Specify the desired output ' +
-                        'file format (POS or BED).', action='store',
+                        'file format. Currently supported formats are: ' +
+                        ', '.join(SUPPORTED_OUTPUT_FORMATS), action='store',
                         default='pos')
     parser.add_argument('files', help='Space-separated list of VCF files.',
                         nargs='+')
