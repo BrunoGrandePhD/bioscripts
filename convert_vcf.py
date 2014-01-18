@@ -30,7 +30,7 @@ import os
 
 
 # Supported formats in lowercase
-SUPPORTED_OUTPUT_FORMATS = ['pos', 'bed']
+SUPPORTED_OUTPUT_FORMATS = ['pos', 'bed', 'museq.pos']
 
 
 def main():
@@ -62,12 +62,20 @@ def main():
                     generate_pos(opened_input_file, opened_output_file)
                 elif format == 'bed':
                     generate_bed(opened_input_file, opened_output_file)
+                elif format == 'museq.pos':
+                    generate_museq_pos(opened_input_file, opened_output_file)
 
 
 def generate_pos(vcf_file_handle, output_file_handle):
     for line_items in parse_vcf_generator(vcf_file_handle):
         chromosome, position = line_items[0], line_items[1]
         output_file_handle.write(chromosome + '\t' + position + '\n')
+
+
+def generate_museq_pos(vcf_file_handle, output_file_handle):
+    for line_items in parse_vcf_generator(vcf_file_handle):
+        chromosome, position = line_items[0], line_items[1]
+        output_file_handle.write(chromosome + ' ' + position + '\n')
 
 
 def generate_bed(vcf_file_handle, output_file_handle):
