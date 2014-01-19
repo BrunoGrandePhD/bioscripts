@@ -75,7 +75,7 @@ def generate_pos(vcf_file_handle, output_file_handle):
 def generate_museq_pos(vcf_file_handle, output_file_handle):
     for line_items in parse_vcf_generator(vcf_file_handle):
         chromosome, position = line_items[0], line_items[1]
-        output_file_handle.write('chr' + chromosome + ':' + position + '\n')
+        output_file_handle.write(chromosome + ':' + position + '\n')
 
 
 def generate_bed(vcf_file_handle, output_file_handle):
