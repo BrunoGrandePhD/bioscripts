@@ -72,9 +72,9 @@ def main():
                 skip = False
                 identifiers = row['dbSNP_RS'].split('&')
                 for i in identifiers:
-                    if not re.search('^rs.*', i):
+                    if re.search('^rs.*', i):
                         skip = True
-                    elif not re.search('COS.*', i):
+                    elif re.search('COS.*', i):
                         skip = False
                         break
                 if skip:
