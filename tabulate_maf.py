@@ -41,7 +41,8 @@ def main():
             'gene',
             'number_of_silent_mutations',
             'number_of_missense_mutations',
-            'number_of_other_mutations'
+            'number_of_other_mutations',
+            'number_of_nonsilent_mutations'
         ],  delimiter='\t')
     maf_writer_with_snp.writeheader()
     maf_writer_without_snp = csv.DictWriter(
@@ -50,7 +51,8 @@ def main():
             'gene',
             'number_of_silent_mutations',
             'number_of_missense_mutations',
-            'number_of_other_mutations'
+            'number_of_other_mutations',
+            'number_of_nonsilent_mutations'
         ],  delimiter='\t')
     maf_writer_without_snp.writeheader()
     maf_rows = list(maf_reader)
@@ -62,7 +64,8 @@ def main():
             'gene': None,
             'number_of_silent_mutations': 0,
             'number_of_missense_mutations': 0,
-            'number_of_other_mutations': 0
+            'number_of_other_mutations': 0,
+            'number_of_nonsilent_mutations': 0
         }
         for row in maf_rows:
             current_Hugo_Symbol = row['Hugo_Symbol']
@@ -90,6 +93,9 @@ def main():
                 # If the next gene is new, write current cumulative_results
                 # to file.
                 if cumulative_results['gene'] is not None:
+                    cumulative_results['number_of_nonsilent_mutations'] = (
+                        cumulative_results['number_of_missense_mutations'] +
+                        cumulative_results['number_of_other_mutations'])
                     if withoutSnp:
                         maf_writer_without_snp.writerow(cumulative_results)
                     else:
