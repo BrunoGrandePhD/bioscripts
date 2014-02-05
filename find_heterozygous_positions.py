@@ -17,7 +17,7 @@ inputFileDir, inputFileName = os.path.split(inputFilePath)
 inputFile = open(inputFilePath, "r")
 # Empty output file
 open(inputFileDir + "/" + os.path.splitext(inputFileName)[0] + ".filt_AB.pos", "w").close()
-outputFile = open(inputFileDir + "/" + os.path.splitext(inputFileName)[0] + ".pos", "a")
+outputFile = open(inputFileDir + "/" + os.path.splitext(inputFileName)[0] + ".filt_AB.pos", "a")
 
 for line in inputFile:
     columns = line.split("\t")
