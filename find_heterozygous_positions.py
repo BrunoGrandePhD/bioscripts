@@ -23,7 +23,7 @@ for line in inputFile:
     columns = line.split("\t")
     if float(columns[3].split(",")[3]) > 0.99:
         chromosome, position = columns[0].split(":")
-        outputFile.write(chromosome + "\t" + position + "\n")
+        outputFile.write(chromosome + ":" + position + "\n")
 
 inputFile.close()
 outputFile.close()
