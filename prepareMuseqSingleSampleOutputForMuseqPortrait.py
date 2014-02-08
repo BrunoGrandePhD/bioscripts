@@ -19,7 +19,7 @@ for line in input_vcf:
     # Skip all non-standard chromosomes
     chromosomes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
                    '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-                   '21', '22', 'X', 'Y']
+                   '21', '22', 'X', 'Y', 'MT']
     if columns[0] not in chromosomes:
         continue
     info = columns[7]
