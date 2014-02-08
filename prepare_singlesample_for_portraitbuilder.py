@@ -6,8 +6,11 @@ import os
 directory, filename = os.path.split(sys.argv[1])
 filename_without_ext, file_extension = os.path.splitext(filename)
 
+if directory is not '':
+    directory += '/'
+
 input_vcf = open(sys.argv[1])
-output_vcf = open(directory + '/' + filename_without_ext + '.prepared' +
+output_vcf = open(directory + filename_without_ext + '.prepared' +
                   file_extension, 'w')
 
 for line in input_vcf:
