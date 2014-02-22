@@ -11,6 +11,17 @@ stratify SNV calls into three categories:
 - Poor candidates that warrant validation (poor_calls)
 - Rejected candidates (bad_calls)
 
+The general pipeline is the following:
+1) Call SNVs using MutationSeq 4 in paired mode with PR > 0.8 on both the
+   exome and genome.
+2) (Optional) Restrict SNVs to exonic regions.
+3) Pool both sets of SNVs and generate a positions (.pos) file for MutationSeq
+   and run MutationSeq in position-specific mode with a threshold of 0 on both
+   the exome and genome.
+4) Ensure that there are the same number of SNV calls in these new VCF files.
+   Also, the positions should be in the same order in both VCF files.
+5) Run integrate_exome_and_genome.py on these two files.
+
 Known Issues
 ~~~~~~~~~~~~
 - Comment lines aren't dealt with.
