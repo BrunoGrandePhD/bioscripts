@@ -46,7 +46,7 @@ SUPPORT_AGAINST_MINIMUM_COVERAGE = 10
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Integrate VCF files from' +
+    parser = argparse.ArgumentParser(description='Integrate VCF files from ' +
                                      'an exome and genome.')
     parser.add_argument('-i', '--input', nargs=2, type=argparse.FileType('r'),
                         required=True,
@@ -54,7 +54,7 @@ def main():
                         'and the other from the genome, separated by a space.')
     parser.add_argument('-o', '--output', nargs=1, type=argparse.FileType('w'),
                         required=True,
-                        help='Specify the output VCF file for the good' +
+                        help='Specify the output VCF file for the good ' +
                         'candidates, and the files for the other two ' +
                         'categories will be created automatically.')
     args = parser.parse_args()
