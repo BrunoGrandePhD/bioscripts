@@ -56,10 +56,10 @@ def main():
         ],  delimiter='\t')
     maf_writer_without_snp.writeheader()
     maf_rows = list(maf_reader)
-    maf_rows.sort(key=lambda row: row['Entrez_Gene_Id'])
+    maf_rows.sort(key=lambda row: row['Hugo_Symbol'])
 
     def tabulate(maf_rows, withoutSnp):
-        past_Entrez_Gene_Id = None
+        past_Hugo_Symbol = None
         cumulative_results = {
             'gene': None,
             'number_of_silent_mutations': 0,
@@ -68,8 +68,8 @@ def main():
             'number_of_nonsilent_mutations': 0
         }
         for row in maf_rows:
-            current_Entrez_Gene_Id = row['Entrez_Gene_Id']
-            if current_Entrez_Gene_Id == "":
+            current_Hugo_Symbol = row['Hugo_Symbol']
+            if current_Hugo_Symbol == "":
                 continue
             if withoutSnp:
                 skip = False
@@ -82,7 +82,7 @@ def main():
                         break
                 if skip:
                     continue
-            if current_Entrez_Gene_Id == past_Entrez_Gene_Id:
+            if current_Hugo_Symbol == past_Hugo_Symbol:
                 if row['Variant_Classification'] == 'Silent':
                     cumulative_results['number_of_silent_mutations'] += 1
                 elif row['Variant_Classification'] == 'Missense_Mutation':
@@ -101,7 +101,7 @@ def main():
                     else:
                         maf_writer_with_snp.writerow(cumulative_results)
                 # Reset cumulative_results
-                cumulative_results['gene'] = current_Entrez_Gene_Id
+                cumulative_results['gene'] = current_Hugo_Symbol
                 cumulative_results['number_of_silent_mutations'] = 0
                 cumulative_results['number_of_missense_mutations'] = 0
                 cumulative_results['number_of_other_mutations'] = 0
@@ -111,7 +111,7 @@ def main():
                     cumulative_results['number_of_missense_mutations'] += 1
                 else:
                     cumulative_results['number_of_other_mutations'] += 1
-                past_Entrez_Gene_Id = current_Entrez_Gene_Id
+                past_Hugo_Symbol = current_Hugo_Symbol
 
     tabulate(maf_rows, False)
     tabulate(maf_rows, True)
