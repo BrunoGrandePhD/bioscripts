@@ -122,20 +122,21 @@ def main():
                                        variant_caller))
 
             # Partial Support Test (for good_calls)
-            if test_partial_support(row_dict_1, row_dict_2):
+            elif test_partial_support(row_dict_1, row_dict_2):
                 # Write row to good_calls
                 output_good_calls.write(create_vcf_row(best_call,
                                         variant_caller))
 
             # Support Against Test (for poor_calls)
-            if test_support_against(row_dict_1, row_dict_2):
+            elif test_support_against(row_dict_1, row_dict_2):
                 # Write row to poor_calls
                 output_poor_calls.write(create_vcf_row(best_call,
                                         variant_caller))
 
             # If the rows reach this point, they're sorted to good_calls
-            output_good_calls.write(create_vcf_row(best_call,
-                                    variant_caller))
+            else:
+                output_good_calls.write(create_vcf_row(best_call,
+                                        variant_caller))
 
             # Increment both VCF files
             row_dict_1 = next(parse_vcf(input_file_1), None)
