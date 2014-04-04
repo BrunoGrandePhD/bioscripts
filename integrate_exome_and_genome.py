@@ -110,7 +110,7 @@ def main():
 
             # If they do match, store the best row, which will be the one
             # that will be stored in the output files
-            if row_dict_1['probability'] > row_dict_1['probability']:
+            if row_dict_1['probability'] > row_dict_2['probability']:
                 best_call = row_dict_1
             else:
                 best_call = row_dict_2
