@@ -36,7 +36,6 @@ python integrate_exome_and_genome.py -i exome.vcf genome.vcf \
 
 
 import argparse
-import os
 
 
 # What is the fractional threshold for deciding that there is enough
