@@ -70,16 +70,27 @@ def main():
             if row_dict_1['Start_Position'] == row_dict_2['Start_Position']:
                 if (row_dict_1['Tumor_Seq_Allele1'] ==
                         row_dict_2['Tumor_Seq_Allele1']):
-                    pass
+                    output_maf.write(recreate_maf_row(row_dict_1))
+                    row_dict_1 = next(maf_rows_1, None)
+                    row_dict_2 = next(maf_rows_2, None)
                 else:  # Alternate allele don't match
-                    pass
-            else:  #If positions don't match
-                pass
+                    if (row_dict_1['Tumor_Seq_Allele1'] >
+                            row_dict_2['Tumor_Seq_Allele1']):
+                        row_dict_2 = next(maf_rows_2, None)
+                    else:   # row_dict_1['Tumor_Seq_Allele1'] <
+                            # row_dict_2['Tumor_Seq_Allele1']
+                        row_dict_1 = next(maf_rows_1, None)
+            else:  # If positions don't match
+                if row_dict_1['Start_Position'] > row_dict_2['Start_Position']:
+                    row_dict_2 = next(maf_rows_2, None)
+                else:  # row_dict_1['Start_Position'] <
+                       # row_dict_2['Start_Position']:
+                    row_dict_1 = next(maf_rows_1, None)
         else:  # If the chromosome don't match
             if row_dict_1['Chromosome'] > row_dict_2['Chromosome']:
                 row_dict_2 = next(maf_rows_2, None)
-            else:  # row_dict_1['Chromosome'] > row_dict_2['Chromosome']
-                pass
+            else:  # row_dict_1['Chromosome'] < row_dict_2['Chromosome']
+                row_dict_1 = next(maf_rows_1, None)
 
 
 def parse_maf_row(row):
@@ -125,7 +136,7 @@ def maf_row_generator(maf_rows):
         yield row
 
 
-def write_maf_row(row_dict):
+def recreate_maf_row(row_dict):
     """Recreate a MAF row from a parsed MAF row (dictionary)."""
     recreated_row = ''
     for column in MAF_FIELDNAMES:
