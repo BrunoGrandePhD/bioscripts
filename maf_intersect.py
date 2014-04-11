@@ -67,7 +67,8 @@ def main():
     row_dict_2 = next(maf_rows_2, None)
     while row_dict_1 is not None and row_dict_2 is not None:
         if row_dict_1['Chromosome'] == row_dict_2['Chromosome']:
-            if row_dict_1['Start_Position'] == row_dict_2['Start_Position']:
+            if (int(row_dict_1['Start_Position']) ==
+                    int(row_dict_2['Start_Position'])):
                 if (row_dict_1['Tumor_Seq_Allele1'] ==
                         row_dict_2['Tumor_Seq_Allele1']):
                     output_maf.write(recreate_maf_row(row_dict_1))
@@ -81,7 +82,8 @@ def main():
                             # row_dict_2['Tumor_Seq_Allele1']
                         row_dict_1 = next(maf_rows_1, None)
             else:  # If positions don't match
-                if row_dict_1['Start_Position'] > row_dict_2['Start_Position']:
+                if (int(row_dict_1['Start_Position']) >
+                        int(row_dict_2['Start_Position'])):
                     row_dict_2 = next(maf_rows_2, None)
                 else:  # row_dict_1['Start_Position'] <
                        # row_dict_2['Start_Position']:
