@@ -26,6 +26,17 @@ import httplib2
 http = httplib2.Http(".cache")
 server = "http://beta.rest.ensembl.org/"
 
+local_database = True
+
+if local_database:
+    import cancerGenome
+    db = cancerGenome.cancerGenomeDB(
+        database_name='lymphoma_meta_hg19',
+        database_host='jango.bcgsc.ca',
+        database_user='rmorin',
+        database_password='rmorin'
+    )
+
 
 MAF_FIELDNAMES = [
     'Hugo_Symbol', 'Entrez_Gene_Id', 'Center', 'NCBI_Build',
@@ -223,16 +234,30 @@ def print_tabulation(genes_total, sorted_category):
 
 
 def get_transcript_length(ensembl_transcript):
-    time.sleep(0.1)  # so we don't get in trouble from Ensembl
-    ext = ("sequence/id/" + ensembl_transcript +
-           "?content-type=text/plain;type=cds;")
-    resp, text_content = http.request(server+ext, method="GET")
-    if not resp.status == 200:
-        print "Invalid response for " + ensembl_transcript + ": ", resp.status
-        print ext
-        return 0
-    print ensembl_transcript + ': ' + str(len(text_content))
-    return len(text_content)
+    if local_database:
+        print "getting length from local db"
+
+        trans_obj = cancerGenome.Transcript(
+            db.db, ensembl_transcript_id=ensembl_transcript
+        )
+        try:
+            transcript_length = trans_obj.cds_length
+        except AttributeError:
+            #transcript probably not in database
+            transcript_length = 0
+    else:
+        time.sleep(0.1)  # so we don't get in trouble from Ensembl
+        ext = ("sequence/id/" + ensembl_transcript +
+               "?content-type=text/plain;type=cds;")
+        resp, text_content = http.request(server+ext, method="GET")
+        if not resp.status == 200:
+            print ("Invalid response for " + ensembl_transcript + ": ",
+                   resp.status)
+            print ext
+            return 0
+        print ensembl_transcript + ': ' + str(len(text_content))
+        transcript_length = len(text_content)
+    return transcript_length
 
 
 if __name__ == '__main__':
