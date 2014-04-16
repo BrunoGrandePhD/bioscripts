@@ -35,7 +35,8 @@ MAF_FIELDNAMES = [
 
 
 def main():
-    """Run maf_intersect.py"""
+    """Run maf_intersect.py
+    """
     # Specify command line arguments
     parser = argparse.ArgumentParser(description='Obtain the intersect ' +
                                      'between two MAF files.')
@@ -57,10 +58,10 @@ def main():
     # Obtain MAF rows and sort them
     maf_rows_1 = maf_row_generator(sorted(map(parse_maf_row,
                                    input_maf_1.readlines()),
-                                   cmp=sort_maf_rows))
+                                   cmp=compare_maf_rows))
     maf_rows_2 = maf_row_generator(sorted(map(parse_maf_row,
                                    input_maf_2.readlines()),
-                                   cmp=sort_maf_rows))
+                                   cmp=compare_maf_rows))
 
     # Compare the two input MAF files
     row_dict_1 = next(maf_rows_1, None)
@@ -91,9 +92,8 @@ def parse_maf_row(row):
     return row_dict
 
 
-def sort_maf_rows(row_dict_1, row_dict_2):
-    """Sort a list of parsed MAF rows according to chromosome,
-    position and alternate allele.
+def compare_maf_rows(row_dict_1, row_dict_2):
+    """Compare two parsed MAF rows for sorting.
     """
     if row_dict_1['Chromosome'] > row_dict_2['Chromosome']:
         return 1
@@ -120,13 +120,15 @@ def sort_maf_rows(row_dict_1, row_dict_2):
 
 
 def maf_row_generator(maf_rows):
-    """Create generator from list of parsed MAF rows."""
+    """Create generator from list of parsed MAF rows.
+    """
     for row in maf_rows:
         yield row
 
 
 def write_maf_row(row_dict):
-    """Recreate a MAF row from a parsed MAF row (dictionary)."""
+    """Recreate a MAF row from a parsed MAF row (dictionary).
+    """
     recreated_row = ''
     for column in MAF_FIELDNAMES:
         recreated_row += row_dict[column] + '\t'
