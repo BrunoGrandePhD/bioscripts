@@ -20,6 +20,11 @@ Example Use
 
 
 import argparse
+import time
+#next three lines are for Python REST API
+import httplib2
+http = httplib2.Http(".cache")
+server = "http://beta.rest.ensembl.org/"
 
 
 MAF_FIELDNAMES = [
@@ -66,6 +71,12 @@ def main():
                         type=argparse.FileType('w'),
                         help='Specify the output file where to store the ' +
                         'results of the MAF files tabulation.')
+    parser.add_argument('-s', '--sort', nargs=1, default='5',
+                        choices=['1', '2', '3', '4', '5'],
+                        help='Specify which category of mutations you want ' +
+                        'the genes to be sorted in decreasing order. See ' +
+                        'script header for mutation categories.')
+
     args = parser.parse_args()
     input_mafs = args.input
     genes_total = {}
@@ -76,17 +87,53 @@ def main():
         'category_4': 0,
         'category_5': 0,
     }
+    sorted_category = 'category_' + args.sort[0]
+
+    # To ensure that the same mutation from a given patient is counted twice
+    # key is patient_id (the normal sample name)
+    # value is dictionary with key = chr:position:alt_allele and value = 1
+    mutations_seen_in_patients = {}
 
     # Loop over every MAF file
     for maf in input_mafs:
         genes_per_file = {}
         for row in maf:
             parsed_row = parse_maf_row(row)
-            current_gene = parsed_row['Hugo_Symbol']
+            mutation_id = (parsed_row['Chromosome'] + ':' +
+                           parsed_row['Start_Position'] + ':' +
+                           parsed_row['Tumor_Seq_Allele1'])
+            patient_id = parsed_row['Matched_Norm_Sample_Barcode']
+            if not patient_id in mutations_seen_in_patients:
+                mutations_seen_in_patients[patient_id] = {}
+            # Check if this mutation has already been seen before in this
+            # patient
+            if (mutation_id in mutations_seen_in_patients[patient_id]):
+                continue
+            else:  # If not, add it to the list of mutations seen in this
+                   # patient
+                mutations_seen_in_patients[patient_id][mutation_id] = 1
+            current_gene = parsed_row['Entrez_Gene_Id']
             current_variant_class = parsed_row['Variant_Classification']
+
             # Create gene entry if doesn't exist already
-            if parsed_row['Hugo_Symbol'] not in genes_per_file:
+            if parsed_row['Entrez_Gene_Id'] not in genes_per_file:
                 genes_per_file[current_gene] = gene_template.copy()
+                genes_per_file[current_gene]['Hugo_Symbol'] = \
+                    parsed_row['Hugo_Symbol']
+                transcript_length = get_transcript_length(
+                    parsed_row['Annotation_Transcript']
+                )
+                genes_per_file[current_gene]['transcript_length'] = \
+                    transcript_length
+            else:  # Update the length if a longer transcript is found
+                new_transcript_length = get_transcript_length(
+                    parsed_row['Annotation_Transcript']
+                )
+                if (new_transcript_length >
+                        genes_per_file[current_gene]['transcript_length']):
+                    genes_per_file[current_gene]['transcript_length'] = \
+                        new_transcript_length
+
             # Stratify variant
             if current_variant_class in CATEGORY_1:
                 genes_per_file[current_gene]['category_1'] += 1
@@ -98,27 +145,37 @@ def main():
                 genes_per_file[current_gene]['category_4'] += 1
             if current_variant_class in CATEGORY_5:
                 genes_per_file[current_gene]['category_5'] += 1
+
         # Transfer from genes_per_file to genes_total
-        for gene, variants in genes_per_file.items():
+        for gene, results in genes_per_file.items():
             # Create gene entry if doesn't exist already
             if gene not in genes_total:
                 genes_total[gene] = gene_template.copy()
+                genes_total[gene]['Hugo_Symbol'] = results['Hugo_Symbol']
+                genes_total[gene]['transcript_length'] = \
+                    results['transcript_length']
+            else:
+                new_transcript_length = results['transcript_length']
+                if (new_transcript_length >
+                        genes_total[gene]['transcript_length']):
+                    genes_total[gene]['transcript_length'] = \
+                        new_transcript_length
             # Stratifying again!
-            if variants['category_1'] > 0:
+            if results['category_1'] > 0:
                 genes_total[gene]['category_1'] += 1
-            if (variants['category_1'] > 0 or variants['category_2'] > 0):
+            if (results['category_1'] > 0 or results['category_2'] > 0):
                 genes_total[gene]['category_2'] += 1
-            if (variants['category_1'] > 0 or variants['category_2'] > 0 or
-                    variants['category_3'] > 0):
+            if (results['category_1'] > 0 or results['category_2'] > 0 or
+                    results['category_3'] > 0):
                 genes_total[gene]['category_3'] += 1
-            if (variants['category_1'] > 0 or variants['category_2'] > 0 or
-                    variants['category_3'] > 0 or variants['category_4'] > 0):
+            if (results['category_1'] > 0 or results['category_2'] > 0 or
+                    results['category_3'] > 0 or results['category_4'] > 0):
                 genes_total[gene]['category_4'] += 1
-            if (variants['category_1'] > 0 or variants['category_2'] > 0 or
-                    variants['category_3'] > 0 or variants['category_4'] > 0 or
-                    variants['category_5'] > 0):
+            if (results['category_1'] > 0 or results['category_2'] > 0 or
+                    results['category_3'] > 0 or results['category_4'] > 0 or
+                    results['category_5'] > 0):
                 genes_total[gene]['category_5'] += 1
-    print print_tabulation(genes_total)
+    args.output[0].write(print_tabulation(genes_total, sorted_category))
 
 
 def parse_maf_row(row):
@@ -130,22 +187,52 @@ def parse_maf_row(row):
     return row_dict
 
 
-def print_tabulation(genes_total):
+def print_tabulation(genes_total, sorted_category):
     """Generate string for the number of variants in each category
     for each gene.
     """
     tabulation = ''
-    for gene, variants in sorted(genes_total.items(), reverse=True,
-                                 key=lambda x:x[1]['category_5']):
-        if gene is '':
-            continue
-        tabulation += gene + '\t'
-        tabulation += str(variants['category_1']) + '\t'
-        tabulation += str(variants['category_2']) + '\t'
-        tabulation += str(variants['category_3']) + '\t'
-        tabulation += str(variants['category_4']) + '\t'
-        tabulation += str(variants['category_5']) + '\n'
+    for gene_id, results in sorted(genes_total.items(), reverse=True,
+                                   key=lambda x: x[1][sorted_category]):
+        if results['Hugo_Symbol'] is '':
+            gene_name = gene_id
+        else:
+            gene_name = results['Hugo_Symbol']
+        transcript_length = float(results['transcript_length'])
+        tabulation += gene_name + '\t'
+        tabulation += str(int(transcript_length)) + '\t'
+        tabulation += str(results['category_1']) + '\t'
+        tabulation += str(results['category_2']) + '\t'
+        tabulation += str(results['category_3']) + '\t'
+        tabulation += str(results['category_4']) + '\t'
+        tabulation += str(results['category_5']) + '\t'
+        if int(transcript_length) != 0:
+            tabulation += str(int(results['category_1'] * 1000000 /
+                              transcript_length)) + '\t'
+            tabulation += str(int(results['category_2'] * 1000000 /
+                              transcript_length)) + '\t'
+            tabulation += str(int(results['category_3'] * 1000000 /
+                              transcript_length)) + '\t'
+            tabulation += str(int(results['category_4'] * 1000000 /
+                              transcript_length)) + '\t'
+            tabulation += str(int(results['category_5'] * 1000000 /
+                              transcript_length)) + '\n'
+        else:  #
+            tabulation += '\t' + '\t' + '\t' + '\t' + '\n'
     return tabulation
+
+
+def get_transcript_length(ensembl_transcript):
+    time.sleep(0.1)  # so we don't get in trouble from Ensembl
+    ext = ("sequence/id/" + ensembl_transcript +
+           "?content-type=text/plain;type=cds;")
+    resp, text_content = http.request(server+ext, method="GET")
+    if not resp.status == 200:
+        print "Invalid response for " + ensembl_transcript + ": ", resp.status
+        print ext
+        return 0
+    print ensembl_transcript + ': ' + str(len(text_content))
+    return len(text_content)
 
 
 if __name__ == '__main__':
