@@ -21,6 +21,7 @@ Example Use
 
 import argparse
 import time
+import pickle
 #next three lines are for Python REST API
 import httplib2
 http = httplib2.Http(".cache")
@@ -87,6 +88,12 @@ def main():
                         help='Specify which category of mutations you want ' +
                         'the genes to be sorted in decreasing order. See ' +
                         'script header for mutation categories.')
+    parser.add_argument('-c', '--cache', nargs=1, default=None,
+                        type=argparse.FileType('r'),
+                        help='')
+    parser.add_argument('-C', '--cache_output', nargs=1, default=None,
+                        type=argparse.FileType('w'),
+                        help='')
 
     args = parser.parse_args()
     input_mafs = args.input
@@ -99,6 +106,10 @@ def main():
         'category_5': 0,
     }
     sorted_category = 'category_' + args.sort[0]
+    if args.cache is None:
+        transcripts_cache = {}
+    else:
+        transcripts_cache = pickle.load(args.cache)
 
     # To ensure that the same mutation from a given patient is counted twice
     # key is patient_id (the normal sample name)
@@ -132,13 +143,15 @@ def main():
                 genes_per_file[current_gene]['Hugo_Symbol'] = \
                     parsed_row['Hugo_Symbol']
                 transcript_length = get_transcript_length(
-                    parsed_row['Annotation_Transcript']
+                    parsed_row['Annotation_Transcript'],
+                    transcripts_cache
                 )
                 genes_per_file[current_gene]['transcript_length'] = \
                     transcript_length
             else:  # Update the length if a longer transcript is found
                 new_transcript_length = get_transcript_length(
-                    parsed_row['Annotation_Transcript']
+                    parsed_row['Annotation_Transcript'],
+                    transcripts_cache
                 )
                 if (new_transcript_length >
                         genes_per_file[current_gene]['transcript_length']):
@@ -187,6 +200,8 @@ def main():
                     results['category_5'] > 0):
                 genes_total[gene]['category_5'] += 1
     args.output[0].write(print_tabulation(genes_total, sorted_category))
+    if args.cache_output is not None:
+        pickle.dump(transcripts_cache, args.cache_output)
 
 
 def parse_maf_row(row):
@@ -233,7 +248,11 @@ def print_tabulation(genes_total, sorted_category):
     return tabulation
 
 
-def get_transcript_length(ensembl_transcript):
+def get_transcript_length(ensembl_transcript, transcripts_cache):
+    # Check if the transcript length is not already known
+    if ensembl_transcript in transcripts_cache:
+        return transcripts_cache[ensembl_transcript]
+    # Otherwise, look it up using the Ensembl database on REST API
     if local_database:
         print "getting length from local db"
 
@@ -257,6 +276,7 @@ def get_transcript_length(ensembl_transcript):
             return 0
         print ensembl_transcript + ': ' + str(len(text_content))
         transcript_length = len(text_content)
+    transcripts_cache[ensembl_transcript] = transcript_length
     return transcript_length
 
 
