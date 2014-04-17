@@ -109,7 +109,7 @@ def main():
     if args.cache is None:
         transcripts_cache = {}
     else:
-        transcripts_cache = pickle.load(args.cache)
+        transcripts_cache = pickle.load(args.cache[0])
 
     # To ensure that the same mutation from a given patient is counted twice
     # key is patient_id (the normal sample name)
@@ -201,7 +201,7 @@ def main():
                 genes_total[gene]['category_5'] += 1
     args.output[0].write(print_tabulation(genes_total, sorted_category))
     if args.cache_output is not None:
-        pickle.dump(transcripts_cache, args.cache_output)
+        pickle.dump(transcripts_cache, args.cache_output[0])
 
 
 def parse_maf_row(row):
