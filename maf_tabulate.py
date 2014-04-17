@@ -26,17 +26,7 @@ import pickle
 import httplib2
 http = httplib2.Http(".cache")
 server = "http://beta.rest.ensembl.org/"
-
-local_database = True
-
-if local_database:
-    import cancerGenome
-    db = cancerGenome.cancerGenomeDB(
-        database_name='lymphoma_meta_hg19',
-        database_host='jango.bcgsc.ca',
-        database_user='rmorin',
-        database_password='rmorin'
-    )
+db = None
 
 
 MAF_FIELDNAMES = [
@@ -90,10 +80,15 @@ def main():
                         'script header for mutation categories.')
     parser.add_argument('-c', '--cache', nargs=1, default=None,
                         type=argparse.FileType('r'),
-                        help='')
+                        help='Specify the location of the transcripts ' +
+                        'cache, previously outputted by the pickle module.')
     parser.add_argument('-C', '--cache_output', nargs=1, default=None,
                         type=argparse.FileType('w'),
-                        help='')
+                        help='Specify where to output the transcripts ' +
+                        'cache using the pickle module.')
+    parser.add_argument('-l', '--local', action='store_true', default=False,
+                        help='If specified, the script uses a local ' +
+                        'database.')
 
     args = parser.parse_args()
     input_mafs = args.input
@@ -111,67 +106,94 @@ def main():
     else:
         transcripts_cache = pickle.load(args.cache[0])
 
+    if args.local:
+        import cancerGenome
+        global db
+        db = cancerGenome.cancerGenomeDB(
+            database_name='lymphoma_meta_hg19',
+            database_host='jango.bcgsc.ca',
+            database_user='rmorin',
+            database_password='rmorin'
+        )
+
+    # Where the mutations are tracked across patients
+    mutated_genes_per_patient = {}
+
     # To ensure that the same mutation from a given patient is counted twice
     # key is patient_id (the normal sample name)
     # value is dictionary with key = chr:position:alt_allele and value = 1
-    mutations_seen_in_patients = {}
+    mutations_per_patient = {}
 
     # Loop over every MAF file
     for maf in input_mafs:
-        genes_per_file = {}
         for row in maf:
             parsed_row = parse_maf_row(row)
             mutation_id = (parsed_row['Chromosome'] + ':' +
                            parsed_row['Start_Position'] + ':' +
                            parsed_row['Tumor_Seq_Allele1'])
             patient_id = parsed_row['Matched_Norm_Sample_Barcode']
-            if not patient_id in mutations_seen_in_patients:
-                mutations_seen_in_patients[patient_id] = {}
+
+            # Initialize patient_id in dictionaries
+            if patient_id not in mutated_genes_per_patient:
+                mutated_genes_per_patient[patient_id] = {}
+                mutations_per_patient[patient_id] = {}
+
             # Check if this mutation has already been seen before in this
             # patient
-            if (mutation_id in mutations_seen_in_patients[patient_id]):
+            if (mutation_id in mutations_per_patient[patient_id]):
                 continue
             else:  # If not, add it to the list of mutations seen in this
                    # patient
-                mutations_seen_in_patients[patient_id][mutation_id] = 1
+                mutations_per_patient[patient_id][mutation_id] = 1
+
             current_gene = parsed_row['Entrez_Gene_Id']
             current_variant_class = parsed_row['Variant_Classification']
 
             # Create gene entry if doesn't exist already
-            if parsed_row['Entrez_Gene_Id'] not in genes_per_file:
-                genes_per_file[current_gene] = gene_template.copy()
-                genes_per_file[current_gene]['Hugo_Symbol'] = \
-                    parsed_row['Hugo_Symbol']
+            if (parsed_row['Entrez_Gene_Id'] not in
+                    mutated_genes_per_patient[patient_id]):
+                mutated_genes_per_patient[patient_id][
+                    current_gene] = gene_template.copy()
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['Hugo_Symbol'] = parsed_row['Hugo_Symbol']
                 transcript_length = get_transcript_length(
                     parsed_row['Annotation_Transcript'],
                     transcripts_cache
                 )
-                genes_per_file[current_gene]['transcript_length'] = \
-                    transcript_length
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['transcript_length'] = transcript_length
             else:  # Update the length if a longer transcript is found
                 new_transcript_length = get_transcript_length(
                     parsed_row['Annotation_Transcript'],
                     transcripts_cache
                 )
                 if (new_transcript_length >
-                        genes_per_file[current_gene]['transcript_length']):
-                    genes_per_file[current_gene]['transcript_length'] = \
+                        mutated_genes_per_patient[patient_id][
+                            current_gene]['transcript_length']):
+                    mutated_genes_per_patient[patient_id][
+                        current_gene]['transcript_length'] = \
                         new_transcript_length
 
             # Stratify variant
             if current_variant_class in CATEGORY_1:
-                genes_per_file[current_gene]['category_1'] += 1
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['category_1'] += 1
             if current_variant_class in CATEGORY_2:
-                genes_per_file[current_gene]['category_2'] += 1
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['category_2'] += 1
             if current_variant_class in CATEGORY_3:
-                genes_per_file[current_gene]['category_3'] += 1
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['category_3'] += 1
             if current_variant_class in CATEGORY_4:
-                genes_per_file[current_gene]['category_4'] += 1
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['category_4'] += 1
             if current_variant_class in CATEGORY_5:
-                genes_per_file[current_gene]['category_5'] += 1
+                mutated_genes_per_patient[patient_id][
+                    current_gene]['category_5'] += 1
 
-        # Transfer from genes_per_file to genes_total
-        for gene, results in genes_per_file.items():
+    # Tabulating!
+    for patient_id in mutated_genes_per_patient.keys():
+        for gene, results in mutated_genes_per_patient[patient_id].items():
             # Create gene entry if doesn't exist already
             if gene not in genes_total:
                 genes_total[gene] = gene_template.copy()
@@ -200,6 +222,8 @@ def main():
                     results['category_5'] > 0):
                 genes_total[gene]['category_5'] += 1
     args.output[0].write(print_tabulation(genes_total, sorted_category))
+
+    # Output transcripts_cache if specified in the command line arguments
     if args.cache_output is not None:
         pickle.dump(transcripts_cache, args.cache_output[0])
 
@@ -249,11 +273,12 @@ def print_tabulation(genes_total, sorted_category):
 
 
 def get_transcript_length(ensembl_transcript, transcripts_cache):
+    global db
     # Check if the transcript length is not already known
     if ensembl_transcript in transcripts_cache:
         return transcripts_cache[ensembl_transcript]
     # Otherwise, look it up using the Ensembl database on REST API
-    if local_database:
+    if db is not None:
         print "getting length from local db"
 
         trans_obj = cancerGenome.Transcript(
