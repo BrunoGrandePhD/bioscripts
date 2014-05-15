@@ -26,7 +26,18 @@ import pickle
 import httplib2
 http = httplib2.Http(".cache")
 server = "http://beta.rest.ensembl.org/"
-db = None
+
+try:
+    import cancerGenome
+    db = cancerGenome.cancerGenomeDB(
+        database_name='lymphoma_meta_hg19',
+        database_host='jango.bcgsc.ca',
+        database_user='rmorin',
+        database_password='rmorin'
+    )
+    is_db_connected = True
+except:
+    is_db_connected = False
 
 
 MAF_FIELDNAMES = [
@@ -92,6 +103,8 @@ def main():
 
     args = parser.parse_args()
     input_mafs = args.input
+    is_local = args.local and is_db_connected
+
     genes_total = {}
     gene_template = {
         'category_1': 0,
@@ -105,16 +118,6 @@ def main():
         transcripts_cache = {}
     else:
         transcripts_cache = pickle.load(args.cache[0])
-
-    if args.local:
-        import cancerGenome
-        global db
-        db = cancerGenome.cancerGenomeDB(
-            database_name='lymphoma_meta_hg19',
-            database_host='jango.bcgsc.ca',
-            database_user='rmorin',
-            database_password='rmorin'
-        )
 
     # Where the mutations are tracked across patients
     mutated_genes_per_patient = {}
@@ -158,14 +161,16 @@ def main():
                     current_gene]['Hugo_Symbol'] = parsed_row['Hugo_Symbol']
                 transcript_length = get_transcript_length(
                     parsed_row['Annotation_Transcript'],
-                    transcripts_cache
+                    transcripts_cache,
+                    is_local
                 )
                 mutated_genes_per_patient[patient_id][
                     current_gene]['transcript_length'] = transcript_length
             else:  # Update the length if a longer transcript is found
                 new_transcript_length = get_transcript_length(
                     parsed_row['Annotation_Transcript'],
-                    transcripts_cache
+                    transcripts_cache,
+                    is_local
                 )
                 if (new_transcript_length >
                         mutated_genes_per_patient[patient_id][
@@ -272,13 +277,13 @@ def print_tabulation(genes_total, sorted_category):
     return tabulation
 
 
-def get_transcript_length(ensembl_transcript, transcripts_cache):
+def get_transcript_length(ensembl_transcript, transcripts_cache, is_local):
     global db
     # Check if the transcript length is not already known
     if ensembl_transcript in transcripts_cache:
         return transcripts_cache[ensembl_transcript]
     # Otherwise, look it up using the Ensembl database on REST API
-    if db is not None:
+    if is_local:
         print "getting length from local db"
 
         trans_obj = cancerGenome.Transcript(
