@@ -22,6 +22,7 @@ Example Use
 import argparse
 import time
 import pickle
+import itertools
 #next three lines are for Python REST API
 import httplib2
 http = httplib2.Http(".cache")
@@ -100,10 +101,13 @@ def main():
     parser.add_argument('-l', '--local', action='store_true', default=False,
                         help='If specified, the script uses a local ' +
                         'database.')
+    parser.add_argument('-H', '--header', action='store_true', default=False,
+                        help='If specified, it skips the header (first line).')
 
     args = parser.parse_args()
     input_mafs = args.input
     is_local = args.local and is_db_connected
+    lines_skipped = 0 if not args.header else 1
 
     genes_total = {}
     gene_template = {
@@ -129,7 +133,7 @@ def main():
 
     # Loop over every MAF file
     for maf in input_mafs:
-        for row in maf:
+        for row in itertools.islice(maf, lines_skipped, None):
             parsed_row = parse_maf_row(row)
             mutation_id = (parsed_row['Chromosome'] + ':' +
                            parsed_row['Start_Position'] + ':' +
