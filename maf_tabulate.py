@@ -268,7 +268,8 @@ def print_tabulation(genes_total, sorted_category, is_corrected):
             gene_name = results['Hugo_Symbol']
         transcript_length = float(results['transcript_length'])
         tabulation += gene_name + '\t'
-        tabulation += str(int(transcript_length)) + '\t'
+        if is_corrected:
+            tabulation += str(int(transcript_length)) + '\t'
         tabulation += str(results['category_1']) + '\t'
         tabulation += str(results['category_2']) + '\t'
         tabulation += str(results['category_3']) + '\t'
