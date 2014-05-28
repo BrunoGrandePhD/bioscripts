@@ -112,6 +112,20 @@ def main():
                     output_maf.write(recreate_maf_row(row_dict_1))
                 row_dict_1 = next(maf_rows_1, None)
 
+    # If merging, continue until the end of the files
+    if is_merging:
+        if row_dict_1 is None and row_dict_2 is None:
+            # Okay, we're done
+            pass
+        elif row_dict_1 is None and row_dict_2 is not None:
+            # We need to finish maf_rows_2
+            for leftover_row in maf_rows_2:
+                output_maf.write(recreate_maf_row(leftover_row))
+        elif row_dict_1 is not None and row_dict_2 is None:
+            # We need to finish maf_rows_1
+            for leftover_row in maf_rows_1:
+                output_maf.write(recreate_maf_row(leftover_row))
+
 
 def parse_maf_row(row):
     """Parse MAF row by creating a dictionary, with a key-value
