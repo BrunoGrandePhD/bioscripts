@@ -103,11 +103,17 @@ def main():
                         'database.')
     parser.add_argument('-H', '--header', action='store_true', default=False,
                         help='If specified, it skips the header (first line).')
+    parser.add_argument('-c', '--corrected', action='store_true',
+                        default=False,
+                        help='If specified, the script will obtain the' +
+                        'transcript lengths and calculate a corrected score ' +
+                        'for the number of mutations.')
 
     args = parser.parse_args()
     input_mafs = args.input
     is_local = args.local and is_db_connected
     lines_skipped = 0 if not args.header else 1
+    is_corrected = args.corrected
 
     genes_total = {}
     gene_template = {
@@ -166,7 +172,8 @@ def main():
                 transcript_length = get_transcript_length(
                     parsed_row['Annotation_Transcript'],
                     transcripts_cache,
-                    is_local
+                    is_local,
+                    is_corrected
                 )
                 mutated_genes_per_patient[patient_id][
                     current_gene]['transcript_length'] = transcript_length
@@ -174,7 +181,8 @@ def main():
                 new_transcript_length = get_transcript_length(
                     parsed_row['Annotation_Transcript'],
                     transcripts_cache,
-                    is_local
+                    is_local,
+                    is_corrected
                 )
                 if (new_transcript_length >
                         mutated_genes_per_patient[patient_id][
@@ -230,7 +238,8 @@ def main():
                     results['category_3'] > 0 or results['category_4'] > 0 or
                     results['category_5'] > 0):
                 genes_total[gene]['category_5'] += 1
-    args.output[0].write(print_tabulation(genes_total, sorted_category))
+    args.output[0].write(print_tabulation(genes_total, sorted_category,
+                         is_corrected))
 
     # Output transcripts_cache if specified in the command line arguments
     if args.cache_output is not None:
@@ -246,7 +255,7 @@ def parse_maf_row(row):
     return row_dict
 
 
-def print_tabulation(genes_total, sorted_category):
+def print_tabulation(genes_total, sorted_category, is_corrected):
     """Generate string for the number of variants in each category
     for each gene.
     """
@@ -265,7 +274,7 @@ def print_tabulation(genes_total, sorted_category):
         tabulation += str(results['category_3']) + '\t'
         tabulation += str(results['category_4']) + '\t'
         tabulation += str(results['category_5']) + '\t'
-        if int(transcript_length) != 0:
+        if int(transcript_length) != 0 or not is_corrected:
             tabulation += str(int(results['category_1'] * 1000000 /
                               transcript_length)) + '\t'
             tabulation += str(int(results['category_2'] * 1000000 /
@@ -281,7 +290,10 @@ def print_tabulation(genes_total, sorted_category):
     return tabulation
 
 
-def get_transcript_length(ensembl_transcript, transcripts_cache, is_local):
+def get_transcript_length(ensembl_transcript, transcripts_cache, is_local,
+                          is_corrected):
+    if not is_corrected:
+        return 1
     global db
     # Check if the transcript length is not already known
     if ensembl_transcript in transcripts_cache:
