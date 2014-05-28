@@ -274,7 +274,7 @@ def print_tabulation(genes_total, sorted_category, is_corrected):
         tabulation += str(results['category_3']) + '\t'
         tabulation += str(results['category_4']) + '\t'
         tabulation += str(results['category_5']) + '\t'
-        if int(transcript_length) != 0 or not is_corrected:
+        if int(transcript_length) != 0 and is_corrected:
             tabulation += str(int(results['category_1'] * 1000000 /
                               transcript_length)) + '\t'
             tabulation += str(int(results['category_2'] * 1000000 /
