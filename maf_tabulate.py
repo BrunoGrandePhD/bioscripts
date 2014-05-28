@@ -98,12 +98,12 @@ def main():
                         type=argparse.FileType('w'),
                         help='Specify where to output the transcripts ' +
                         'cache using the pickle module.')
-    parser.add_argument('-l', '--local', action='store_true', default=False,
+    parser.add_argument('-d', '--db', action='store_true', default=False,
                         help='If specified, the script uses a local ' +
                         'database.')
     parser.add_argument('-H', '--header', action='store_true', default=False,
                         help='If specified, it skips the header (first line).')
-    parser.add_argument('-c', '--corrected', action='store_true',
+    parser.add_argument('-L', '--length_corrected', action='store_true',
                         default=False,
                         help='If specified, the script will obtain the' +
                         'transcript lengths and calculate a corrected score ' +
@@ -111,9 +111,9 @@ def main():
 
     args = parser.parse_args()
     input_mafs = args.input
-    is_local = args.local and is_db_connected
+    is_local = args.db and is_db_connected
     lines_skipped = 0 if not args.header else 1
-    is_corrected = args.corrected
+    is_corrected = args.length_corrected
 
     genes_total = {}
     gene_template = {
