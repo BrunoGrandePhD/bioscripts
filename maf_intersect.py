@@ -48,12 +48,17 @@ def main():
                         required=True,
                         help='Specify where you want the MAF rows present ' +
                         'in both input MAF files to be outputted.')
+    parser.add_argument('-m', '--merge', action='store_true', default=False,
+                        help='Instead of finding the intersecting MAF rows, ' +
+                        'this script merges both MAF files such that there ' +
+                        'are no duplicate rows.')
 
     # Parse command line arguments
     args = parser.parse_args()
     input_maf_1 = args.input[0]
     input_maf_2 = args.input[1]
     output_maf = args.output[0]
+    is_merging = args.merge
 
     # Obtain MAF rows and sort them
     maf_rows_1 = maf_row_generator(sorted(map(parse_maf_row,
@@ -78,21 +83,33 @@ def main():
                 else:  # Alternate allele don't match
                     if (row_dict_1['Tumor_Seq_Allele1'] >
                             row_dict_2['Tumor_Seq_Allele1']):
+                        if is_merging:
+                            output_maf.write(recreate_maf_row(row_dict_2))
                         row_dict_2 = next(maf_rows_2, None)
                     else:   # row_dict_1['Tumor_Seq_Allele1'] <
                             # row_dict_2['Tumor_Seq_Allele1']
+                        if is_merging:
+                            output_maf.write(recreate_maf_row(row_dict_2))
                         row_dict_1 = next(maf_rows_1, None)
             else:  # If positions don't match
                 if (int(row_dict_1['Start_Position']) >
                         int(row_dict_2['Start_Position'])):
+                    if is_merging:
+                        output_maf.write(recreate_maf_row(row_dict_2))
                     row_dict_2 = next(maf_rows_2, None)
                 else:  # row_dict_1['Start_Position'] <
                        # row_dict_2['Start_Position']:
+                    if is_merging:
+                        output_maf.write(recreate_maf_row(row_dict_1))
                     row_dict_1 = next(maf_rows_1, None)
         else:  # If the chromosome don't match
             if row_dict_1['Chromosome'] > row_dict_2['Chromosome']:
+                if is_merging:
+                    output_maf.write(recreate_maf_row(row_dict_2))
                 row_dict_2 = next(maf_rows_2, None)
             else:  # row_dict_1['Chromosome'] < row_dict_2['Chromosome']
+                if is_merging:
+                    output_maf.write(recreate_maf_row(row_dict_1))
                 row_dict_1 = next(maf_rows_1, None)
 
 
