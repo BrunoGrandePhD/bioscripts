@@ -126,6 +126,11 @@ def main():
             for leftover_row in maf_rows_1:
                 output_maf.write(recreate_maf_row(leftover_row))
 
+    # Close the files
+    input_maf_1.close()
+    input_maf_2.close()
+    output_maf.close()
+
 
 def parse_maf_row(row):
     """Parse MAF row by creating a dictionary, with a key-value
