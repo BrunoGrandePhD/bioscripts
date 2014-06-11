@@ -30,6 +30,10 @@ class cancerGenomeDB():
             self.host = 'coconut.phage.bcgsc.ca'
         db = MySQLdb.connect(host=self.host, user=self.user, passwd=self.password, db=self.database)
         self.db = db
+
+    def __str__(self):
+        return self.database + " :)"
+
     def getSomaticSNVs(self,library=None):
         '''get all the somatic SNVs in the database'''
         cursor = self.db.cursor()
@@ -163,6 +167,7 @@ class cancerGenomeDB():
                 #print these_genes
                 genes += these_genes
         return genes
+
     def getGenesInRegion(self, chromosome, start, end, coding_region = None):
         """get all genes that are within the specified region"""
         cursor = self.db.cursor()
@@ -189,6 +194,24 @@ class cancerGenomeDB():
             gene_objects.append(gene_obj)
 
         return gene_objects
+
+    def getGenesWithinRegion(self, chromosome, start, end):
+        """Gets all genes entirely encompassed within a region
+        (i.e., excluding those at the start and end).
+        Method written by Bruno Grande.
+        """
+        cursor = self.db.cursor()
+        region = {
+            'region_chromosome': chromosome,
+            'region_start': start,
+            'region_end': end
+        }
+        # "select id from gene where chromosome = '%s' and ((%s > start_position and %s < end_position) or (%s < start_position and %s > end_position) or (%s > start_position and %s < end_position))" %
+        query = 'SELECT id FROM gene WHERE chromosome = {region_chromosome} AND start_position >= {region_start} AND end_position <= {region_end}'.format(region)
+        cursor.execute(query)
+        gene_instances = []
+        for gene in cursor.fetchone():
+
 
     def getFusionGenes(self, sample_name = None, genome_confirmed = None):
         """get all genes in a CNV of a given maximum size"""
@@ -1048,7 +1071,7 @@ class cancerGenomeDB():
     def addGenomicBreak(self, library_id, chromosome, position, side):
         """Creates a new genomic_break entry in database for a given library.
         Returns the id for the newly created genomic_break entry.
-        If the entry already exists, returns -1.
+        If the entry already exists, returns its ID.
         Method written by Bruno Grande.
         """
         cursor = self.db.cursor()
@@ -1095,7 +1118,7 @@ class cancerGenomeDB():
                              num_spanning_reads, status):
         """Creates a new structural_variant entry in database combining two genomic_break entries.
         Returns the id for the newly created structural_variant entry.
-        If the entry already exists, returns its id.
+        If the entry already exists, returns its ID.
         Method written by Bruno Grande.
         """
         cursor = self.db.cursor()
@@ -1123,7 +1146,7 @@ class cancerGenomeDB():
         print query
         count = cursor.execute(query)
         if count = 1:
-            print 'Structural variant alreadt exists. Nothing added.'
+            print 'Structural variant already exists. Nothing added.'
             structural_variant['id'] = cursor.fetchone()[0]
             return structural_variant['id']
         if count > 1:
