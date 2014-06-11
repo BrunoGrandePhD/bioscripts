@@ -1145,7 +1145,7 @@ class cancerGenomeDB():
         query = 'SELECT id FROM structural_variant WHERE break1_id = {break1_id} AND break2_id = {break2_id} AND type = {sv_type}'.format(structural_variant)
         print query
         count = cursor.execute(query)
-        if count = 1:
+        if count == 1:
             print 'Structural variant already exists. Nothing added.'
             structural_variant['id'] = cursor.fetchone()[0]
             return structural_variant['id']
