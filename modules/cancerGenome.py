@@ -31,9 +31,6 @@ class cancerGenomeDB():
         db = MySQLdb.connect(host=self.host, user=self.user, passwd=self.password, db=self.database)
         self.db = db
 
-    def __str__(self):
-        return self.database + " :)"
-
     def getSomaticSNVs(self,library=None):
         '''get all the somatic SNVs in the database'''
         cursor = self.db.cursor()
@@ -206,12 +203,28 @@ class cancerGenomeDB():
             'region_start': start,
             'region_end': end
         }
-        # "select id from gene where chromosome = '%s' and ((%s > start_position and %s < end_position) or (%s < start_position and %s > end_position) or (%s > start_position and %s < end_position))" %
         query = 'SELECT id FROM gene WHERE chromosome = {region_chromosome} AND start_position >= {region_start} AND end_position <= {region_end}'.format(region)
         cursor.execute(query)
         gene_instances = []
-        for gene in cursor.fetchone():
-            pass
+        for gene_id in cursor.fetchone():
+            gene_instances.append(Gene(self.db, gene_id=gene_id))
+        return gene_instances
+
+    def getGenesAtPosition(self, chromosome, position):
+        """Gets all overlapping genes at a given position.
+        Method written by Bruno Grande.
+        """
+        cursor = self.db.cursor()
+        locus = {
+            'chromosome': chromosome,
+            'position': position
+        }
+        query = 'SELECT id FROM gene WHERE chromosome = {chromosome} AND start_position < {position} AND end_position > {position}'.format(locus)
+        cursor.execute(query)
+        gene_instances = []
+        for gene_id in cursor.fetchone():
+            gene_instances.append(Gene(self.db, gene_id=gene_id))
+        return gene_instances
 
     def getFusionGenes(self, sample_name = None, genome_confirmed = None):
         """get all genes in a CNV of a given maximum size"""
