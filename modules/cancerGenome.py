@@ -1136,9 +1136,9 @@ class cancerGenomeDB():
         }
 
         # Creates and/or obtains IDs for associated genomic breaks
-        structural_variant['break1_id'] = self.addGenomicBreak(library_id, break1_chromosome
+        structural_variant['break1_id'] = self.addGenomicBreak(library_id, break1_chromosome,
                                                                break1_position, break1_side)
-        structural_variant['break2_id'] = self.addGenomicBreak(library_id, break2_chromosome
+        structural_variant['break2_id'] = self.addGenomicBreak(library_id, break2_chromosome,
                                                                break2_position, break2_side)
 
         # Checks if the structural variant already exists
