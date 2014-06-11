@@ -211,7 +211,7 @@ class cancerGenomeDB():
         cursor.execute(query)
         gene_instances = []
         for gene in cursor.fetchone():
-
+            pass
 
     def getFusionGenes(self, sample_name = None, genome_confirmed = None):
         """get all genes in a CNV of a given maximum size"""
