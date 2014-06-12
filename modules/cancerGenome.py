@@ -1131,6 +1131,56 @@ class cancerGenomeDB():
         genomic_break['id'] = cursor.fetchone()[0]
         return genomic_break['id']
 
+    def addSvCnv(self, library_id, chromosome, segment_start, segment_end, segment_state,
+               cnv_type):
+        """Creates a new cnv entry in the database for a given library.
+        This is for CNVs found by ABySS.
+        Returns the id for the newly created cnv entry.
+        If the entry already exists, returns its ID.
+        Method written by Bruno Grande and Marija Jovanovic.
+        """
+        cursor = self.db.cursor()
+        cnv = {
+            'library_id': library_id,
+            'chromosome': chromosome,
+            'segment_start': segment_start,
+            'segment_end': segment_end,
+            'segment_state': segment_state,
+            'size': segment_end - segment_start + 1,
+            'cnv_type': cnv_type
+        }
+
+        #Checks if the cnv already exists for this library
+        query = 'SELECT cnv.id FROM cnv, event WHERE cnv.event_id = event.id AND event.library_id = "{library_id}" AND chromosome = "{chromosome}" AND segment_start = "{segment_start}" AND segment_end = "{segment_end}" AND segment_state = "{segment_state}" AND type = "{cnv_type}"'.format(**cnv)
+        print query
+        count = cursor.execute(query)
+        if count == 1:
+            print 'BRUNO THIS ALREADY EXISTS. Adding nothing.'
+            cnv['id'] = cursor.fetchone()[0]
+            return cnv['id']
+        if count > 1:
+            raise ValueError('Multiple CNV enteries already exist with those exact'
+                             'attributes. It\'s impossible to determine which one to select.')
+
+        #If the CNV doesn't exist, create an event entry
+        query = 'INSERT INTO event (library_id, type) VALUES ("{library_id}", "SV")'.format(**cnv)
+        print query
+        cursor.execute(query)
+        query = 'SELECT LAST_INSERT_ID()'
+        print query
+        cursor.execute(query)
+        cnv['event_id'] = cursor.fetchone()[0]
+
+        # Now that we have the newly created event_id, we can create a cnv entry.... YAY
+        query = 'INSERT INTO cnv (event_id, chromosome, segment_start, segment_end, size, type, segment_state) VALUES ("{event_id}", "{chromosome}", "{segment_start}", "{segment_end}", "{size}", "{type}", "{segment_state}")'.format(**cnv)
+        print query
+        cursor.execute(query)
+        query = 'SELECT LAST_INSERT_ID()'
+        print query
+        cursor.execute(query)
+        cnv['id'] = cursor.fetchone()[0]
+        return cnv['id']
+
     def addStructuralVariant(self, library_id, break1_chromosome, break1_position, break1_side,
                              break2_chromosome, break2_position, break2_side, sv_type, num_read_pairs,
                              num_spanning_reads, status):
