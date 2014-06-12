@@ -211,16 +211,19 @@ class cancerGenomeDB():
             gene_instances.append(Gene(self.db, gene_id=gene_id))
         return gene_instances
 
-    def getGenesAtPosition(self, chromosome, position):
+    def getGenesAtPosition(self, chromosome, position, padding=1000):
         """Gets all overlapping genes at a given position.
+        The padding keyword argument adds a margin around genes
+        as a way to roughly include regulatory elements.
         Method written by Bruno Grande.
         """
         cursor = self.db.cursor()
         locus = {
             'chromosome': chromosome,
-            'position': position
+            'position': position,
+            'padding': padding
         }
-        query = 'SELECT id FROM gene WHERE chromosome = "{chromosome}" AND start_position < {position} AND end_position > {position}'.format(**locus)
+        query = 'SELECT id FROM gene WHERE chromosome = "{chromosome}" AND start_position - {padding} < {position} AND end_position + {padding} > {position}'.format(**locus)
         print query
         cursor.execute(query)
         gene_instances = []
@@ -1098,7 +1101,7 @@ class cancerGenomeDB():
         }
 
         # Checks if the genomic break already exists for this library
-        query = 'SELECT genomic_break.id FROM genomic_break, event WHERE genomic_break.event_id = event.id AND event.library_id = {library_id} AND chromosome = "{chromosome}" AND position = {position} AND side = "{side}"'.format(**genomic_break)
+        query = 'SELECT genomic_break.id FROM genomic_break, event WHERE genomic_break.event_id = event.id AND event.library_id = "{library_id}" AND chromosome = "{chromosome}" AND position = {position} AND side = "{side}"'.format(**genomic_break)
         print query
         count = cursor.execute(query)
         if count == 1:
