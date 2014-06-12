@@ -207,7 +207,7 @@ class cancerGenomeDB():
         print query
         cursor.execute(query)
         gene_instances = []
-        for gene_id in cursor.fetchone():
+        for gene_id in cursor.fetchall():
             gene_instances.append(Gene(self.db, gene_id=gene_id))
         return gene_instances
 
@@ -224,7 +224,7 @@ class cancerGenomeDB():
         print query
         cursor.execute(query)
         gene_instances = []
-        for gene_id in cursor.fetchone():
+        for gene_id in cursor.fetchall():
             gene_instances.append(Gene(self.db, gene_id=gene_id))
         return gene_instances
 
