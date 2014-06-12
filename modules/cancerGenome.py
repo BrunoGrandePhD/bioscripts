@@ -204,6 +204,7 @@ class cancerGenomeDB():
             'region_end': end
         }
         query = 'SELECT id FROM gene WHERE chromosome = {region_chromosome} AND start_position >= {region_start} AND end_position <= {region_end}'.format(**region)
+        print query
         cursor.execute(query)
         gene_instances = []
         for gene_id in cursor.fetchone():
@@ -220,6 +221,7 @@ class cancerGenomeDB():
             'position': position
         }
         query = 'SELECT id FROM gene WHERE chromosome = {chromosome} AND start_position < {position} AND end_position > {position}'.format(**locus)
+        print query
         cursor.execute(query)
         gene_instances = []
         for gene_id in cursor.fetchone():
