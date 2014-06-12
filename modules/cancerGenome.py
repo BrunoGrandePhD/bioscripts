@@ -1175,6 +1175,9 @@ class cancerGenomeDB():
         query = 'INSERT INTO structural_variant (type, break1_id, break2_id, num_read_pairs, num_spanning_reads, status) VALUES ("{sv_type}", {break1_id}, {break2_id}, {num_read_pairs}, {num_spanning_reads}, "{status}")'.format(**structural_variant)
         print query
         cursor.execute(query)
+        query = 'SELECT LAST_INSERT_ID()'
+        print query
+        cursor.execute(query)
         structural_variant['id'] = cursor.fetchone()[0]
         return structural_variant['id']
 
