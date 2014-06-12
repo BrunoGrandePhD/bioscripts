@@ -203,7 +203,7 @@ class cancerGenomeDB():
             'region_start': start,
             'region_end': end
         }
-        query = 'SELECT id FROM gene WHERE chromosome = {region_chromosome} AND start_position >= {region_start} AND end_position <= {region_end}'.format(**region)
+        query = 'SELECT id FROM gene WHERE chromosome = "{region_chromosome}" AND start_position >= {region_start} AND end_position <= {region_end}'.format(**region)
         print query
         cursor.execute(query)
         gene_instances = []
@@ -220,7 +220,7 @@ class cancerGenomeDB():
             'chromosome': chromosome,
             'position': position
         }
-        query = 'SELECT id FROM gene WHERE chromosome = {chromosome} AND start_position < {position} AND end_position > {position}'.format(**locus)
+        query = 'SELECT id FROM gene WHERE chromosome = "{chromosome}" AND start_position < {position} AND end_position > {position}'.format(**locus)
         print query
         cursor.execute(query)
         gene_instances = []
@@ -1098,7 +1098,7 @@ class cancerGenomeDB():
         }
 
         # Checks if the genomic break already exists for this library
-        query = 'SELECT genomic_break.id FROM genomic_break, event WHERE genomic_break.event_id = event.id AND event.library_id = {library_id} AND chromosome = {chromosome} AND position = {position} AND side = {side}'.format(**genomic_break)
+        query = 'SELECT genomic_break.id FROM genomic_break, event WHERE genomic_break.event_id = event.id AND event.library_id = {library_id} AND chromosome = "{chromosome}" AND position = {position} AND side = "{side}"'.format(**genomic_break)
         print query
         count = cursor.execute(query)
         if count == 1:
@@ -1119,7 +1119,7 @@ class cancerGenomeDB():
         genomic_break['event_id'] = cursor.fetchone()[0]
 
         # Now that we have the newly created event_id, we can create a genomic_break entry
-        query = 'INSERT INTO genomic_break (chromosome, position, event_id, side) VALUES ({chromosome}, {position}, {event_id}, {side})'.format(**genomic_break)
+        query = 'INSERT INTO genomic_break (chromosome, position, event_id, side) VALUES ("{chromosome}", {position}, {event_id}, "{side}")'.format(**genomic_break)
         print query
         cursor.execute(query)
         query = 'SELECT LAST_INSERT_ID()'
@@ -1157,7 +1157,7 @@ class cancerGenomeDB():
                                                                break2_position, break2_side)
 
         # Checks if the structural variant already exists
-        query = 'SELECT id FROM structural_variant WHERE break1_id = {break1_id} AND break2_id = {break2_id} AND type = {sv_type}'.format(**structural_variant)
+        query = 'SELECT id FROM structural_variant WHERE break1_id = {break1_id} AND break2_id = {break2_id} AND type = "{sv_type}"'.format(**structural_variant)
         print query
         count = cursor.execute(query)
         if count == 1:
@@ -1169,7 +1169,7 @@ class cancerGenomeDB():
                               'attributes. It\'s impossible to determine which one to select.')
 
         # If the structural variant doesn't already exist, create an structural_variant entry
-        query = 'INSERT INTO structural_variant (type, break1_id, break2_id, num_read_pairs, num_spanning_reads, status) VALUES ({sv_type}, {break1_id}, {break2_id}, {num_read_pairs}, {num_spanning_reads}, {status})'.format(**structural_variant)
+        query = 'INSERT INTO structural_variant (type, break1_id, break2_id, num_read_pairs, num_spanning_reads, status) VALUES ("{sv_type}", {break1_id}, {break2_id}, {num_read_pairs}, {num_spanning_reads}, "{status}")'.format(**structural_variant)
         print query
         cursor.execute(query)
         structural_variant['id'] = cursor.fetchone()[0]
