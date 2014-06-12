@@ -1113,7 +1113,7 @@ class cancerGenomeDB():
                               'attributes. It\'s impossible to determine which one to select.')
 
         # If the genomic break doesn't already exist, create an event entry
-        query = 'INSERT INTO event (library_id, type) VALUES ({library_id}, "SV")'.format(**genomic_break)
+        query = 'INSERT INTO event (library_id, type) VALUES ("{library_id}", "SV")'.format(**genomic_break)
         print query
         cursor.execute(query)
         query = 'SELECT LAST_INSERT_ID()'
