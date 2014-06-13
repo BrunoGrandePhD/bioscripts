@@ -1186,9 +1186,9 @@ class cancerGenomeDB():
             gene_id = gene.gene_id
             #Find effect from segment state
             if cnv['segment_state'] == 3:
-                effect = 'duplication'
+                effect = 'gain'
             if cnv['segment_state'] == 1:
-                effect = 'deletion'
+                effect = 'loss'
             # CREATE GENE EVENT ENTRY!!
             query = 'INSERT INTO gene_event (event_id, gene_id, nature, effect) VALUES ({event_id}, {gene_id}, "{nature}", "{effect}")'.format(event_id=cnv['event_id'], gene_id=gene_id, nature=nature, effect=effect)
             print query
