@@ -1230,13 +1230,13 @@ class cancerGenomeDB():
         # Figure out status (somatic, germline, or unknown)
         if structural_variant['status'] == 'other':
                 nature = 'germline'
-            elif structural_variant['status'] == 'notfound':
-                nature = 'unknown'
-            elif structural_variant['status'] == 'somatic' or structural_variant['status'] == 'related':
-                nature = 'somatic'
-            else:
-                raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
-            structural_variant['nature'] = nature
+        elif structural_variant['status'] == 'notfound':
+            nature = 'unknown'
+        elif structural_variant['status'] == 'somatic' or structural_variant['status'] == 'related':
+            nature = 'somatic'
+        else:
+            raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
+        structural_variant['nature'] = nature
 
         # Creates and/or obtains IDs for associated genomic_break entries
         structural_variant['break1_id'] = self.addGenomicBreak(library_id, break1_chromosome,
