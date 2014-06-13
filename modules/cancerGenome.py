@@ -1151,7 +1151,7 @@ class cancerGenomeDB():
         }
 
         #Checks if the cnv already exists for this library
-        query = 'SELECT cnv.id FROM cnv, event WHERE cnv.event_id = event.id AND event.library_id = "{library_id}" AND chromosome = "{chromosome}" AND segment_start = "{segment_start}" AND segment_end = "{segment_end}" AND segment_state = "{segment_state}" AND type = "{cnv_type}"'.format(**cnv)
+        query = 'SELECT cnv.id FROM cnv, event WHERE cnv.event_id = event.id AND event.library_id = "{library_id}" AND chromosome = "{chromosome}" AND segment_start = "{segment_start}" AND segment_end = "{segment_end}" AND segment_state = "{segment_state}" AND cnv.type = "{cnv_type}"'.format(**cnv)
         print query
         count = cursor.execute(query)
         if count == 1:
