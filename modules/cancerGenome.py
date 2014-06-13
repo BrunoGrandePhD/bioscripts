@@ -1221,7 +1221,6 @@ class cancerGenomeDB():
             else:
                 raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
             structural_variant['cnv_type'] = cnv_type
-            # Argument order for addSvSnv: self, library_id, chromosome, segment_start, segment_end, segment_state, cnv_type
             structural_variant['cnv_id'] = self.addSvCnv(library_id, break1_chromosome, break1_position, break2_position, segment_state, cnv_type)
 
         # Checks if the structural variant already exists
