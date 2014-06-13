@@ -1201,7 +1201,7 @@ class cancerGenomeDB():
             'num_read_pairs': num_read_pairs,
             'num_spanning_reads': num_spanning_reads,
             'status': status,
-            'cnv_id': None
+            'cnv_id': 'NULL'
         }
 
         # Creates and/or obtains IDs for associated genomic_break entries
