@@ -1200,7 +1200,8 @@ class cancerGenomeDB():
             'sv_type': sv_type,
             'num_read_pairs': num_read_pairs,
             'num_spanning_reads': num_spanning_reads,
-            'status': status
+            'status': status,
+            'cnv_id': None
         }
 
         # Creates and/or obtains IDs for associated genomic_break entries
@@ -1236,7 +1237,7 @@ class cancerGenomeDB():
                               'attributes. It\'s impossible to determine which one to select.')
 
         # If the structural variant doesn't already exist, create an structural_variant entry
-        query = 'INSERT INTO structural_variant (type, break1_id, break2_id, num_read_pairs, num_spanning_reads, status) VALUES ("{sv_type}", {break1_id}, {break2_id}, {num_read_pairs}, {num_spanning_reads}, "{status}")'.format(**structural_variant)
+        query = 'INSERT INTO structural_variant (type, break1_id, break2_id, cnv_id, num_read_pairs, num_spanning_reads, status) VALUES ("{sv_type}", {break1_id}, {break2_id}, {cnv_id}, {num_read_pairs}, {num_spanning_reads}, "{status}")'.format(**structural_variant)
         print query
         cursor.execute(query)
         query = 'SELECT LAST_INSERT_ID()'
