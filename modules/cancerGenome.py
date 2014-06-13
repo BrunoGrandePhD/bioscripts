@@ -1086,7 +1086,7 @@ class cancerGenomeDB():
                 print query
                 cursor.execute(query)
 
-    def addGenomicBreak(self, library_id, chromosome, position, side):
+    def addGenomicBreak(self, library_id, chromosome, position, side, nature):
         """Creates a new genomic_break entry in database for a given library.
         Returns the id for the newly created genomic_break entry.
         If the entry already exists, returns its ID.
@@ -1121,6 +1121,15 @@ class cancerGenomeDB():
         cursor.execute(query)
         genomic_break['event_id'] = cursor.fetchone()[0]
 
+        # Now that we have created an event entry we can create a gene_event entry to find possible affected genes
+        genes = self.getGenesAtPosition(chromosome,position)
+        for gene in genes:
+            gene_id = gene.gene_id
+            # CREATE GENE EVENT ENTRY!!
+            query = 'INSERT INTO gene_event (event_id, gene_id, nature, effect) VALUES ({event_id}, {gene_id}, "{nature}", "disruption")'.format(event_id=genomic_break['event_id'], gene_id=gene_id, nature=nature)
+            print query
+            cursor.execute(query)
+
         # Now that we have the newly created event_id, we can create a genomic_break entry
         query = 'INSERT INTO genomic_break (chromosome, position, event_id, side) VALUES ("{chromosome}", {position}, {event_id}, "{side}")'.format(**genomic_break)
         print query
@@ -1132,7 +1141,7 @@ class cancerGenomeDB():
         return genomic_break['id']
 
     def addSvCnv(self, library_id, chromosome, segment_start, segment_end, segment_state,
-               cnv_type):
+               nature):
         """Creates a new cnv entry in the database for a given library.
         This is for CNVs found by ABySS.
         Returns the id for the newly created cnv entry.
@@ -1147,11 +1156,11 @@ class cancerGenomeDB():
             'segment_end': segment_end,
             'segment_state': segment_state,
             'size': int(segment_end) - int(segment_start) + 1,
-            'cnv_type': cnv_type
+            'nature': nature
         }
 
         #Checks if the cnv already exists for this library
-        query = 'SELECT cnv.id FROM cnv, event WHERE cnv.event_id = event.id AND event.library_id = "{library_id}" AND chromosome = "{chromosome}" AND segment_start = "{segment_start}" AND segment_end = "{segment_end}" AND segment_state = "{segment_state}" AND cnv.type = "{cnv_type}"'.format(**cnv)
+        query = 'SELECT cnv.id FROM cnv, event WHERE cnv.event_id = event.id AND event.library_id = "{library_id}" AND chromosome = "{chromosome}" AND segment_start = "{segment_start}" AND segment_end = "{segment_end}" AND segment_state = "{segment_state}" AND cnv.type = "{nature}"'.format(**cnv)
         print query
         count = cursor.execute(query)
         if count == 1:
@@ -1171,8 +1180,22 @@ class cancerGenomeDB():
         cursor.execute(query)
         cnv['event_id'] = cursor.fetchone()[0]
 
+        # Now that we have created an event entry we can create a gene_event entry to find possible affected genes
+        genes = self.getGenesWithinRegion(chromosome, segment_start, segment_end)
+        for gene in genes:
+            gene_id = gene.gene_id
+            #Find effect from segment state
+            if cnv['segment_state'] == 3:
+                effect = 'duplication'
+            if cnv['segment_state'] == 1:
+                effect = 'deletion'
+            # CREATE GENE EVENT ENTRY!!
+            query = 'INSERT INTO gene_event (event_id, gene_id, nature, effect) VALUES ({event_id}, {gene_id}, "{nature}", "{effect}")'.format(event_id=genomic_break['event_id'], gene_id=gene_id, nature=natxure, effect=effect)
+            print query
+            cursor.execute(query)
+
         # Now that we have the newly created event_id, we can create a cnv entry.... YAY
-        query = 'INSERT INTO cnv (event_id, chromosome, segment_start, segment_end, size, type, segment_state) VALUES ("{event_id}", "{chromosome}", "{segment_start}", "{segment_end}", "{size}", "{cnv_type}", "{segment_state}")'.format(**cnv)
+        query = 'INSERT INTO cnv (event_id, chromosome, segment_start, segment_end, size, type, segment_state) VALUES ("{event_id}", "{chromosome}", "{segment_start}", "{segment_end}", "{size}", "{nature}", "{segment_state}")'.format(**cnv)
         print query
         cursor.execute(query)
         query = 'SELECT LAST_INSERT_ID()'
@@ -1204,25 +1227,27 @@ class cancerGenomeDB():
             'cnv_id': 'NULL'
         }
 
+        # Figure out status (somatic, germline, or unknown)
+        if structural_variant['status'] == 'other':
+                nature = 'germline'
+            elif structural_variant['status'] == 'notfound':
+                nature = 'unknown'
+            elif structural_variant['status'] == 'somatic' or structural_variant['status'] == 'related':
+                nature = 'somatic'
+            else:
+                raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
+            structural_variant['nature'] = nature
+
         # Creates and/or obtains IDs for associated genomic_break entries
         structural_variant['break1_id'] = self.addGenomicBreak(library_id, break1_chromosome,
-                                                               break1_position, break1_side)
+                                                               break1_position, break1_side, nature)
         structural_variant['break2_id'] = self.addGenomicBreak(library_id, break2_chromosome,
-                                                               break2_position, break2_side)
+                                                               break2_position, break2_side, nature)
 
         # Creates and/or obtains IDs for associated cnv entries
         if structural_variant['sv_type'] == 'duplication' or structural_variant['sv_type'] == 'deletion':
             segment_state = 3 if structural_variant['sv_type'] == 'duplication' else 1
-            if structural_variant['status'] == 'other':
-                cnv_type = 'germline'
-            elif structural_variant['status'] == 'notfound':
-                cnv_type = 'unknown'
-            elif structural_variant['status'] == 'somatic' or structural_variant['status'] == 'related':
-                cnv_type = 'somatic'
-            else:
-                raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
-            structural_variant['cnv_type'] = cnv_type
-            structural_variant['cnv_id'] = self.addSvCnv(library_id, break1_chromosome, break1_position, break2_position, segment_state, cnv_type)
+            structural_variant['cnv_id'] = self.addSvCnv(library_id, break1_chromosome, break1_position, break2_position, segment_state, nature)
 
         # Checks if the structural variant already exists
         query = 'SELECT id FROM structural_variant WHERE break1_id = {break1_id} AND break2_id = {break2_id} AND type = "{sv_type}"'.format(**structural_variant)
