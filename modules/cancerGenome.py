@@ -1172,7 +1172,7 @@ class cancerGenomeDB():
         cnv['event_id'] = cursor.fetchone()[0]
 
         # Now that we have the newly created event_id, we can create a cnv entry.... YAY
-        query = 'INSERT INTO cnv (event_id, chromosome, segment_start, segment_end, size, type, segment_state) VALUES ("{event_id}", "{chromosome}", "{segment_start}", "{segment_end}", "{size}", "{type}", "{segment_state}")'.format(**cnv)
+        query = 'INSERT INTO cnv (event_id, chromosome, segment_start, segment_end, size, type, segment_state) VALUES ("{event_id}", "{chromosome}", "{segment_start}", "{segment_end}", "{size}", "{cnv_type}", "{segment_state}")'.format(**cnv)
         print query
         cursor.execute(query)
         query = 'SELECT LAST_INSERT_ID()'
