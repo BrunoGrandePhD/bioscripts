@@ -1190,7 +1190,7 @@ class cancerGenomeDB():
             if cnv['segment_state'] == 1:
                 effect = 'deletion'
             # CREATE GENE EVENT ENTRY!!
-            query = 'INSERT INTO gene_event (event_id, gene_id, nature, effect) VALUES ({event_id}, {gene_id}, "{nature}", "{effect}")'.format(event_id=cnv['event_id'], gene_id=gene_id, nature=natxure, effect=effect)
+            query = 'INSERT INTO gene_event (event_id, gene_id, nature, effect) VALUES ({event_id}, {gene_id}, "{nature}", "{effect}")'.format(event_id=cnv['event_id'], gene_id=gene_id, nature=nature, effect=effect)
             print query
             cursor.execute(query)
 
