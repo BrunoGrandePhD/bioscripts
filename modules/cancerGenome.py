@@ -1146,7 +1146,7 @@ class cancerGenomeDB():
             'segment_start': segment_start,
             'segment_end': segment_end,
             'segment_state': segment_state,
-            'size': segment_end - segment_start + 1,
+            'size': int(segment_end) - int(segment_start) + 1,
             'cnv_type': cnv_type
         }
 
