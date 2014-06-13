@@ -1203,11 +1203,26 @@ class cancerGenomeDB():
             'status': status
         }
 
-        # Creates and/or obtains IDs for associated genomic breaks
+        # Creates and/or obtains IDs for associated genomic_break entries
         structural_variant['break1_id'] = self.addGenomicBreak(library_id, break1_chromosome,
                                                                break1_position, break1_side)
         structural_variant['break2_id'] = self.addGenomicBreak(library_id, break2_chromosome,
                                                                break2_position, break2_side)
+
+        # Creates and/or obtains IDs for associated cnv entries
+        if structural_variant['sv_type'] == 'duplication' or structural_variant['sv_type'] == 'deletion':
+            segment_state = 3 if structural_variant['sv_type'] == 'duplication' else 1
+            if structural_variant['status'] == 'other':
+                cnv_type = 'germline'
+            elif structural_variant['status'] == 'notfound':
+                cnv_type = 'unknown'
+            elif structural_variant['status'] == 'somatic' or structural_variant['status'] == 'related':
+                cnv_type = 'somatic'
+            else:
+                raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
+            structural_variant['cnv_type'] = cnv_type
+            # Argument order for addSvSnv: self, library_id, chromosome, segment_start, segment_end, segment_state, cnv_type
+            structural_variant['cnv_id'] = self.addSvCnv(library_id, break1_chromosome, break1_position, break2_position, segment_state, cnv_type)
 
         # Checks if the structural variant already exists
         query = 'SELECT id FROM structural_variant WHERE break1_id = {break1_id} AND break2_id = {break2_id} AND type = "{sv_type}"'.format(**structural_variant)
