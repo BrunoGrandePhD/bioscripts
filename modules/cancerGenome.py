@@ -15,19 +15,19 @@ class cancerGenomeDB():
         if database_name:
             self.database = database_name
         else:
-            self.database = 'lymphoma_genomes'
+            self.database = 'lymphoma_meta_hg19'
         if database_password:
             self.password = database_password
         else:
-            self.password = 'DLBCL'
+            self.password = 'viewer'
         if database_user:
             self.user = database_user
         else:
-            self.user = 'lymphoma_user'
+            self.user = 'viewer'
         if database_host:
             self.host = database_host
         else:
-            self.host = 'coconut.phage.bcgsc.ca'
+            self.host = 'jango.bcgsc.ca'
         db = MySQLdb.connect(host=self.host, user=self.user, passwd=self.password, db=self.database)
         self.db = db
 
@@ -96,6 +96,7 @@ class cancerGenomeDB():
         objects = []
         for result in cursor.fetchall():
             sss_id = result[0]
+            print "splice site ID: %s" % sss_id
             splice_obj = SpliceSiteSNV(self.db,sss_id)
             objects.append(splice_obj)
         return(objects)
@@ -713,7 +714,7 @@ class cancerGenomeDB():
          base_change)
         cursor.execute(query)
         print "added %s to event and %s:%s to somatic_mutation" % (event_id,chromosome,position)
-    def addMutation(self, library_id, chromosome, position, ensembl_gene_id, base_change, status=None, protein_altering=None, annotation=None, validation_outcome=None, cdna_change = None, to_validate=None,identifiers=None, splice_site=None, mutation_seq_probability=None, triplet=None, tumour_ref = None, tumour_nref = None, normal_ref = None, normal_nref = None,transcript=None,sift_score=None,polyphen_score=None,mutation_ass_score=None):
+    def addMutation(self, library_id, chromosome, position, ensembl_gene_id, base_change, status=None, protein_altering=None, annotation=None, validation_outcome=None, cdna_change = None, to_validate=None,identifiers=None, splice_site=None, mutation_seq_probability=None, triplet=None, tumour_ref = None, tumour_nref = None, normal_ref = None, normal_nref = None,transcript=None,sift_score=None,polyphen_score=None,mutation_ass_score=None,ref_base=None,nref_base=None):
         """Load new mutation into the database for a given library"""
         cursor = self.db.cursor()
 
@@ -862,8 +863,16 @@ class cancerGenomeDB():
                 transcript,
                 sift_score,
                 polyphen_score)
+            print "adding mutation_______________"
             print query
             cursor.execute(query)
+            if nref_base:
+                query = "select last_insert_id()"
+                cursor.execute(query)
+                mutation_id = cursor.fetchone()[0]
+                query = "update mutation set nref_base = '%s', ref_base= '%s' where id = %s" % (nref_base,ref_base,mutation_id)
+                cursor.execute(query)
+
             return 1
     def addLohSegment(self, library_id, chromosome, segment_start, segment_end, size, bin_count, copy_number, loh_state, Major_allele_count, minor_allele_count):
         """Load LOH segment from Apolloh into the database for a given library"""
@@ -884,6 +893,50 @@ class cancerGenomeDB():
         query = "insert into loh (event_id, chromosome, segment_start, segment_end, size, bin_count, copy_number, loh_state, Major_allele_count, minor_allele_count) values (%s,'%s',%s,%s,%s,%s,%s,'%s',%s,%s)" % (event_id,chromosome, segment_start, segment_end, size, bin_count, copy_number, loh_state, Major_allele_count, minor_allele_count)
         cursor.execute(query)
         return 1
+    def loadTranscripts(self,file):
+        '''load all ensembl transcripts into the db and link to gene table'''
+        #ENSE00003051371	ENST00000593546	1	272	26597180	26597451	1	-1	1
+        cursor = self.db.cursor()
+        handle = open(file,"r")
+        for line in handle:
+            line = line.rstrip()
+            (ense,enst,tstart,tend,gstart,gend,strand,phase,end_phase) = line.split()
+            query = "select id from transcript where ensembl_id = '%s'" % (enst)
+            cursor.execute(query)
+            trans_id = int(cursor.fetchone()[0])
+            query = "insert into exon (transcript_id,ensembl_id,transcript_start,transcript_end,genome_start,genome_end,strand,phase,end_phase) values(%s,'%s',%s,%s,%s,%s,%s,%s,%s)" % (trans_id,ense,tstart,tend,gstart,gend,strand,phase,end_phase)
+            print query
+            cursor.execute(query)
+    def loadExons(self,file):
+        '''load all ensembl exons into the db and link to transcript table'''
+        #ENSE00003051371	ENST00000593546	1	272	26597180	26597451	1	-1	1
+        cursor = self.db.cursor()
+        handle = open(file,"r")
+        for line in handle:
+            line = line.rstrip()
+            (ense,enst,tstart,tend,gstart,gend,strand,phase,end_phase) = line.split()
+            query = "select id from transcript where ensembl_id = '%s'" % (enst)
+            cursor.execute(query)
+            trans_id = int(cursor.fetchone()[0])
+            query = "insert into exon (transcript_id,ensembl_id,transcript_start,transcript_end,genome_start,genome_end,strand,phase,end_phase) values(%s,'%s',%s,%s,%s,%s,'%s','%s','%s')" % (trans_id,ense,tstart,tend,gstart,gend,strand,phase,end_phase)
+            print query
+            cursor.execute(query)
+    def loadProteins(self,file):
+        '''Load all ensembl proteins into the db and link to transcript table'''
+        #ENSP00000468826 ENST00000593546 272
+        #ensembl_id transcript length
+        cursor = self.db.cursor()
+        handle = open(file,"r")
+        for line in handle:
+            line = line.rstrip()
+            (ensp,enst,length) = line.split()
+            query = "select id from transcript where ensembl_id = '%s'" % (enst)
+            print query
+            cursor.execute(query)
+            trans_id = int(cursor.fetchone()[0])
+            query = "insert into protein (transcript_id,ensembl_id,length) values(%s,'%s',%s)" % (trans_id,ensp,length)
+            print query
+            cursor.execute(query)
     def loadCNVs(self,cnv_file,sample_name=None,library_name=None,file_format="hmmcopy"):
         if sample_name:
             lib_obj = self.getLibraries(type='genome',sample_name=sample_name,sample_type='tumour')[0]
@@ -951,6 +1004,7 @@ class cancerGenomeDB():
         print "loaded %s events" % counter
     def loadIndels(self, indel_file, file_format, tumour_library, analysis_type):
         """Read transabyss output files and import into database, analysis_type is either bubble_pop or split_alignment, file_format is either validator or full"""
+        #Warning. This is now broken and needs to be replaced to work with new addIndel function
         try:
             indel_handle = open(indel_file, 'r')
         except IOError:
@@ -980,7 +1034,125 @@ class cancerGenomeDB():
                 if vals[7] == 'somatic':
                     self.addIndel(indel_details, tumour_library.id, analysis_type, validator=True)
 
-    def addIndel(self, indel_details, library_id, indel_source, validator = None):
+    def addCoverage(self,library,coverage_type,total_bases,region_size=None,gene=None,cutoff=None,fraction_above_cutoff=None,chromosome=None,position=None):
+        '''Add details of the sequence coverage for a gene, coordinate or library'''
+        cursor = self.db.cursor()
+
+        if coverage_type == "library":
+            #will record the average coverage across all exonic regions
+            #for speed, this can just be parsed from the end of the summarized coverage file (output by summarize_bedcoverage.pl)
+            average_depth = total_bases / region_size
+            library_id = library.id
+            if cutoff:
+                query = "insert into coverage (total_bases,average_depth,cutoff,fraction_above_cutoff) values(%f,%s,%f,%f)" % (total_bases,average_depth,cutoff,fraction_above_cutoff)
+            else:
+                query = "insert into coverage (total_bases,average_depth) values(%f,%s)" % (total_bases,average_depth)
+            cursor.execute(query)
+            query ="select last_insert_id()"
+            cursor.execute(query)
+            cov_id = cursor.fetchone()[0]
+            query = "insert into library_coverage (library_id,coverage_id) values(%s,%s)" % (library_id,cov_id)
+            cursor.execute(query)
+        elif coverage_type == "gene":
+            average_depth = total_bases / region_size
+            gene_id = gene.id
+            library_id = library.id
+            #check if already present
+            query = "select count(*) from coverage, gene_coverage where coverage.id = gene_coverage.coverage_id and gene_id = %s and library_id = %s" % (gene_id,library_id)
+            cursor.execute(query)
+
+            num = cursor.fetchone()[0]
+            if num > 0:
+                print "error, this is already in the db, skipping"
+                return()
+
+            #will record the average coverage across all exons of a specified gene
+            #first add coverage information
+            if cutoff:
+                query = "insert into coverage (total_bases,average_depth,cutoff,fraction_above_cutoff) values(%f,%s,%f,%f)" % (total_bases,average_depth,cutoff,fraction_above_cutoff)
+            else:
+                query = "insert into coverage (total_bases,average_depth) values(%f,%s)" % (total_bases,average_depth)
+            cursor.execute(query)
+            query ="select last_insert_id()"
+            cursor.execute(query)
+            cov_id = cursor.fetchone()[0]
+            query = "insert into gene_coverage (gene_id,library_id,coverage_id) values(%s,%s,%s)" % (gene_id,library_id,cov_id)
+            cursor.execute(query)
+        elif coverage_type == "coordinate":
+            library_id = library.id
+            #will record the coverage at specified genomic coordinates only
+            #check if already present
+            query = "select count(*) from  position_coverage, position where position.id = position_coverage.position_id and chromosome = '%s' and position = %s and library_id = %s" % (chromosome, position,library_id)
+            cursor.execute(query)
+
+            num = cursor.fetchone()[0]
+            if num > 0:
+                print "error, this is already in the db, skipping"
+                return()
+
+            average_depth = total_bases / 1
+
+            #first get position id from position table or create one
+            query = "select id from position where chromosome = '%s' and position = %s" % (chromosome, position)
+            cursor.execute(query)
+            try:
+                pos_id = cursor.fetchone()[0]
+            except TypeError:
+                #need to add this position
+                query = "insert into position (chromosome, position) values ('%s',%s)" % (chromosome,position)
+                cursor.execute(query)
+                query ="select last_insert_id()"
+                cursor.execute(query)
+                pos_id = cursor.fetchone()[0]
+            if cutoff:
+                query = "insert into coverage (total_bases,average_depth,cutoff,fraction_above_cutoff) values(%f,%s)" % (total_bases,average_depth,cutoff,fraction_above_cutoff)
+            else:
+                query = "insert into coverage (total_bases,average_depth) values(%f,%s)" % (total_bases,average_depth)
+            cursor.execute(query)
+            query ="select last_insert_id()"
+            cursor.execute(query)
+            cov_id = cursor.fetchone()[0]
+
+            query = "insert into position_coverage (position_id, library_id, coverage_id) values (%s,%s,%s)" % (pos_id,library_id,cov_id)
+            print query
+            cursor.execute(query)
+
+    def addIndel(self,library_id,chromosome,start,end,ref,alt,effect,annotation,ensembl_id=None):
+        cursor = self.db.cursor()
+        query = "select indel.id from indel, event where event.id = indel.event_id and chromosome = '%s' and (start = %s or end = %s) and library_id = %s" % (chromosome,start,end,library_id)
+        print query
+        cursor.execute(query)
+        try:
+            db_id = cursor.fetchone()[0]
+        except TypeError:
+            pass
+        else:
+            print "skipping duplicate indel"
+            return()
+        #add event record then indel and finally gene_event details
+        query = "insert into event (library_id,type) values('%s','indel')" % (library_id)
+        cursor.execute(query)
+        query = "select last_insert_id()"
+        cursor.execute(query)
+        event_id = cursor.fetchone()[0]
+        query = "insert into indel (event_id,chromosome,start,end,ref,alt,annotation,effect) values(%s,'%s',%s,%s,'%s','%s','%s','%s')" % (event_id,chromosome,start,end,ref,alt,annotation,effect)
+        cursor.execute(query)
+        query = "select last_insert_id()"
+        cursor.execute(query)
+        indel_id = cursor.fetchone()[0]
+        #add gene details
+        if ensembl_id:
+            try:
+                gene_obj = Gene(self.db,ensembl_id=ensembl_id)
+                id = gene_obj.id
+            except AttributeError:
+                print "error getting gene info for %s" % ensembl_id
+                exit()
+            query = "insert into gene_event (event_id,gene_id,nature) values (%s,%s,'somatic')" % (event_id,id)
+            cursor.execute(query)
+        return indel_id
+
+    def addIndelLegacy(self, indel_details, library_id, indel_source, validator = None):
         cursor = self.db.cursor()
         query = "select indel.id, validator_result from indel, event where event.id = indel.event_id and chromosome = '%s' and (start = %s or end = %s) and library_id = %s" % (indel_details['chromosome'],
          indel_details['start'],
@@ -1110,7 +1282,7 @@ class cancerGenomeDB():
             return genomic_break['id']
         if count > 1:
             raise ValueError('Multiple genomic_break entries already exist with those exact '
-                              'attributes. It\'s impossible to determine which one to select.')
+                             'attributes. It\'s impossible to determine which one to select.')
 
         # If the genomic break doesn't already exist, create an event entry
         query = 'INSERT INTO event (library_id, type) VALUES ("{library_id}", "SV")'.format(**genomic_break)
@@ -1121,8 +1293,9 @@ class cancerGenomeDB():
         cursor.execute(query)
         genomic_break['event_id'] = cursor.fetchone()[0]
 
-        # Now that we have created an event entry we can create a gene_event entry to find possible affected genes
-        genes = self.getGenesAtPosition(chromosome,position)
+        # Now that we have created an event entry we can create a gene_event entry to find
+        # possible affected genes
+        genes = self.getGenesAtPosition(chromosome, position)
         for gene in genes:
             gene_id = gene.gene_id
             # CREATE GENE EVENT ENTRY!!
@@ -1141,7 +1314,7 @@ class cancerGenomeDB():
         return genomic_break['id']
 
     def addSvCnv(self, library_id, chromosome, segment_start, segment_end, segment_state,
-               nature):
+                 nature):
         """Creates a new cnv entry in the database for a given library.
         This is for CNVs found by ABySS.
         Returns the id for the newly created cnv entry.
@@ -1180,7 +1353,8 @@ class cancerGenomeDB():
         cursor.execute(query)
         cnv['event_id'] = cursor.fetchone()[0]
 
-        # Now that we have created an event entry we can create a gene_event entry to find possible affected genes
+        # Now that we have created an event entry we can create a gene_event entry to find
+        # possible affected genes
         genes = self.getGenesWithinRegion(chromosome, segment_start, segment_end)
         for gene in genes:
             gene_id = gene.gene_id
@@ -1205,8 +1379,8 @@ class cancerGenomeDB():
         return cnv['id']
 
     def addStructuralVariant(self, library_id, break1_chromosome, break1_position, break1_side,
-                             break2_chromosome, break2_position, break2_side, sv_type, num_read_pairs,
-                             num_spanning_reads, status):
+                             break2_chromosome, break2_position, break2_side, sv_type,
+                             num_read_pairs, num_spanning_reads, status):
         """Creates a new structural_variant entry in database combining two genomic_break entries.
         Returns the id for the newly created structural_variant entry.
         If the entry already exists, returns its ID.
@@ -1232,22 +1406,29 @@ class cancerGenomeDB():
                 nature = 'germline'
         elif structural_variant['status'] == 'notfound':
             nature = 'unknown'
-        elif structural_variant['status'] == 'somatic' or structural_variant['status'] == 'related':
+        elif (structural_variant['status'] == 'somatic' or
+              structural_variant['status'] == 'related'):
             nature = 'somatic'
         else:
-            raise ValueError('Unrecognized SV status (expected: other, notfound, somatic, or related)')
+            raise ValueError('Unrecognized SV status '
+                             '(expected: other, notfound, somatic, or related)')
         structural_variant['nature'] = nature
 
         # Creates and/or obtains IDs for associated genomic_break entries
         structural_variant['break1_id'] = self.addGenomicBreak(library_id, break1_chromosome,
-                                                               break1_position, break1_side, nature)
+                                                               break1_position, break1_side,
+                                                               nature)
         structural_variant['break2_id'] = self.addGenomicBreak(library_id, break2_chromosome,
-                                                               break2_position, break2_side, nature)
+                                                               break2_position, break2_side,
+                                                               nature)
 
         # Creates and/or obtains IDs for associated cnv entries
-        if structural_variant['sv_type'] == 'duplication' or structural_variant['sv_type'] == 'deletion':
+        if (structural_variant['sv_type'] == 'duplication' or
+                structural_variant['sv_type'] == 'deletion'):
             segment_state = 3 if structural_variant['sv_type'] == 'duplication' else 1
-            structural_variant['cnv_id'] = self.addSvCnv(library_id, break1_chromosome, break1_position, break2_position, segment_state, nature)
+            structural_variant['cnv_id'] = self.addSvCnv(library_id, break1_chromosome,
+                                                         break1_position, break2_position,
+                                                         segment_state, nature)
 
         # Checks if the structural variant already exists
         query = 'SELECT id FROM structural_variant WHERE break1_id = {break1_id} AND break2_id = {break2_id} AND type = "{sv_type}"'.format(**structural_variant)
@@ -1259,7 +1440,7 @@ class cancerGenomeDB():
             return structural_variant['id']
         if count > 1:
             raise ValueError('Multiple structural_variant entries already exist with those exact '
-                              'attributes. It\'s impossible to determine which one to select.')
+                             'attributes. It\'s impossible to determine which one to select.')
 
         # If the structural variant doesn't already exist, create an structural_variant entry
         query = 'INSERT INTO structural_variant (type, break1_id, break2_id, cnv_id, num_read_pairs, num_spanning_reads, status) VALUES ("{sv_type}", {break1_id}, {break2_id}, {cnv_id}, {num_read_pairs}, {num_spanning_reads}, "{status}")'.format(**structural_variant)
@@ -1297,13 +1478,17 @@ class cancerGenomeDB():
         cursor.execute(check_query)
         num = cursor.fetchone()[0]
         if num:
+            
             query = "select id from sample where sample_id = '%s' and sample_type = '%s'" % (sample_name, sample_type)
+            print query
             cursor.execute(query)
             id = cursor.fetchone()[0]
             return id
         query = "insert into sample (sample_id,patient_id,sample_type) values ('%s',%s,'%s')" % (sample_name, patient_id, sample_type)
+        print query
         cursor.execute(query)
         query = "select id from sample where sample_id = '%s' and sample_type = '%s'" % (sample_name, sample_type)
+        print query
         cursor.execute(query)
         id = cursor.fetchone()[0]
         return id
@@ -1743,7 +1928,9 @@ class Transcript(cancerGenomeDB):
         if transcript_id:
             query = 'select transcript.ensembl_id, transcript.length, cds_start, cds_end, transcript.refseq, protein.id, gene.ensembl_id from gene, protein, transcript where gene.id = transcript.gene_id and protein.transcript_id = transcript.id and transcript.id = %s' % transcript_id
             cursor.execute(query)
+            print query
             details = cursor.fetchone()
+            print details
             try:
                 self.id = transcript_id
             except TypeError:
@@ -1761,7 +1948,7 @@ class Transcript(cancerGenomeDB):
             self.gene = Gene(self.db, ensembl_id=self.ensembl_gene_id)
         else:
             query = "select transcript.id, transcript.length, cds_start, cds_end, transcript.refseq, gene.ensembl_id from transcript, gene where gene.id = transcript.gene_id and transcript.ensembl_id = '%s'" % ensembl_transcript_id
-            #print query
+            print query
             cursor.execute(query)
             details = cursor.fetchone()
             print details
@@ -1843,13 +2030,14 @@ class Transcript(cancerGenomeDB):
         '''Convert a genomic position to a position relative to the CDS start of this transcript (accounting for introns etc) and also return the codon and codon position this site corresponds to'''
         exons = self.getExons()
         for exon in exons:
-            #print "exon"
+            #print "exon and %s" % genomic_position
+            #print exon
             gstart = exon.genome_start
             gend = exon.genome_end
             if not (genomic_position >= gstart and genomic_position <= gend):
-                #print "skipping: %s-%s" % (gstart,gend)
+                print "skipping: %s-%s" % (gstart,gend)
                 continue #wrong exon
-            print exon
+            #print "MATCHING EXON"
             tstart = exon.transcript_start
             cds_start = self.cds_start + 1
             exon_cds_pos = tstart  - cds_start + 1#this is where in the CDS this exon starts
@@ -1888,7 +2076,7 @@ class Transcript(cancerGenomeDB):
                     large_seq1 = seq[this_cds_pos-45-codon_pos:this_cds_pos-1]
                     large_seq2 = seq[this_cds_pos:this_cds_pos+45]
                     #large_seq = seq[seq_offset-42:seq_offset+45]
-
+                    #this next bit of code will need to be modified to handle indels properly
                     if large_seq1 == "":
                         #error due to not enough bases, get the full sequence up to this position
                         large_seq1 = seq[:this_cds_pos-1]
@@ -3149,6 +3337,7 @@ class SpliceSiteSNV():
         self.db = db_object
         cursor = db_object.cursor()
         query = 'select gene_id, event.id, chromosome, position, base_change, validation_outcome, library_name, sample.sample_id from sample, gene_event, splice_site_snv, event, library where sample.id = library.sample_id and library.id = event.library_id and splice_site_snv.event_id = event.id and gene_event.event_id = event.id and splice_site_snv.id = %s' % splice_site_snv_id
+        print query
         cursor.execute(query)
         (gene_id,event_id,chrom,pos,base_change,validation_outcome,library_name,sample_name) = cursor.fetchone()
         gene_obj = Gene(db_object,gene_id=gene_id)
