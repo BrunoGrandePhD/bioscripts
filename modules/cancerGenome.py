@@ -714,6 +714,31 @@ class cancerGenomeDB():
          base_change)
         cursor.execute(query)
         print "added %s to event and %s:%s to somatic_mutation" % (event_id,chromosome,position)
+    def addAlleleDetails(self, sample_id,chromosome,position,parent_library,ref_count,nref_count,experiment_type=None,cellularity_estimate=None):
+        """Add details for the two alleles for a given mutation to the database and link to Mutation and Sample tables.
+        Note, data can refer to mutations not in the same library as the sample (e.g. in primary/met pairs). The library the mutation was called in is here referred to as the parent_library.
+        This code will populate the allele_count table."""
+        cursor = self.db.cursor()
+        library_id = parent_library.id
+        mutation_query = "select id from mutation where library_id = %s and chromosome = '%s' and position = %s" % (library_id,chromosome,position)
+        cursor.execute(mutation_query)
+        mutation_id = cursor.fetchone()[0]
+        #check that the details for this mutation have not already been added
+        check_query = "select count(*) from allele_count, sample where allele_count.mutation_id = %s and sample.id = %s" % (mutation_id,sample_id)
+        cursor.execute(check_query)
+        num_records = cursor.fetchone()[0]
+        if num_records >0:
+            print "already added this information, skipping"
+            return()
+        #insert data into allele_count table
+        if not cellularity_estimate:
+            cellularity_estimate = 0
+        if not experiment_type:
+            experiment_type = 'exome'
+        variant_allele_fraction = float(nref_count)/(float(nref_count) + float(ref_count))
+        insert_query = "insert into allele_count(mutation_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate) values(%s,%s,%s,%s,%f,'%s',%f)" % (mutation_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate)
+        cursor.execute(insert_query)
+
     def addMutation(self, library_id, chromosome, position, ensembl_gene_id, base_change, status=None, protein_altering=None, annotation=None, validation_outcome=None, cdna_change = None, to_validate=None,identifiers=None, splice_site=None, mutation_seq_probability=None, triplet=None, tumour_ref = None, tumour_nref = None, normal_ref = None, normal_nref = None,transcript=None,sift_score=None,polyphen_score=None,mutation_ass_score=None,ref_base=None,nref_base=None):
         """Load new mutation into the database for a given library"""
         cursor = self.db.cursor()
@@ -3364,10 +3389,6 @@ class SNV(cancerGenomeDB):
             protein_altering = None
             self.annotation = None
         else:
-            #query = 'select mutation.gene, gene.id, mutation.chromosome, position, annotation, base_change, protein_altering, library_id, sample.sample_id, status, validation_outcome, validation_method, mutation_seq_prob, reference_base_count, nonreference_base_count, high_quality_coverage, rnaseq_reference_base_count, rnaseq_nonreference_base_count, high_quality_germline_coverage, germline_nonreference_base_count from mutation, gene, library, sample where sample.id = library.sample_id and library.id = mutation.library_id and gene.ensembl_id = mutation.gene and mutation.id = %s' % mutation_id
-            #cursor.execute(query)
-            #self.ensembl_id, self.gene_id, self.chromosome, self.position, self.annotation, base_change, protein_altering, library_id, self.sample_name, self.status, self.validation_outcome, self.validation_method, self.mutation_seq_prob, self.reference_base_count, self.nonreference_base_count, self.high_quality_coverage, self.rnaseq_reference_base_count, self.rnaseq_nonreference_base_count, self.high_quality_germline_coverage, self.germline_nonreference_base_count = cursor.fetchone()
-            #self.id = mutation_id
             query = 'select mutation.gene, gene.id, mutation.chromosome, position, annotation, base_change, protein_altering, library_id, sample.sample_id, status, validation_outcome, validation_method from mutation, gene, library, sample where sample.id = library.sample_id and library.id = mutation.library_id and gene.ensembl_id = mutation.gene and mutation.id = %s' % mutation_id
             cursor.execute(query)
             self.ensembl_id, self.gene_id, self.chromosome, self.position, self.annotation, base_change, protein_altering, library_id, self.sample_name, self.status, self.validation_outcome, self.validation_method = cursor.fetchone()
