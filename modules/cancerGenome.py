@@ -688,6 +688,19 @@ class cancerGenomeDB():
             cnv_data['start'] = int(float(cnv_cols[2]))
             cnv_data['end'] = int(float(cnv_cols[3]))
             cnv_data['state'] = int(cnv_cols[6])-1
+        elif file_format == "titan":
+            # Sample  Chromosome  Start_Position(bp)  End_Position(bp)    Length(bp)  Median_Ratio    \
+            #       Median_logR TITAN_state TITAN_call  Copy_Number MinorCN MajorCN Clonal_Cluster  Clonal_Frequency
+            # HY1972  1   13868   739528  725661  0.72    0.01    3   NLOH    2   0   2   4   0.58
+            # HY1972  1   741267  829637  88371   0.67    0.14    9   ALOH    3   0   3   4   0.58
+            cnv_cols = cnv_line.rstrip().split("\t")
+            # Skip header line
+            if cnv_cols[0] == "Sample":
+                return cnv_data 
+            cnv_data['chromosome'] = cnv_cols[1]
+            cnv_data['start'] = int(float(cnv_cols[2]))
+            cnv_data['end'] = int(float(cnv_cols[3]))
+            cnv_data['state'] = int(cnv_cols[9])
         else:
             print "error, no file type specified"
             exit()
@@ -1019,7 +1032,7 @@ class cancerGenomeDB():
             print "event: %i" % event_id
             #now add cnv details
             size = cnv_details['end'] - cnv_details['start'] +1
-            query = "insert into cnv (event_id,chromosome,segment_start,segment_end,segment_state,size,segment_mean,num_markers) VALUES(%i,'%s',%i,%i,%i,%i,%f,%s)" % (event_id,cnv_details['chromosome'],cnv_details['start'],cnv_details['end'],cnv_details['state'],size,cnv_details['segment_mean'],cnv_details['num_markers'])
+            query = "insert into cnv (event_id,chromosome,segment_start,segment_end,segment_state,size,type) VALUES(%i,'%s',%i,%i,%i,%i,'%s')" % (event_id,cnv_details['chromosome'],cnv_details['start'],cnv_details['end'],cnv_details['state'],size,'somatic')
             cursor.execute(query)
             counter+=1
             #now populate 'gene_event' table based on genes in region
