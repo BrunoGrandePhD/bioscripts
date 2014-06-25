@@ -3378,7 +3378,6 @@ class SpliceSiteSNV():
         self.sample_name= sample_name
         self.reference_base = base_change[0]
         self.nonreference_base = base_change[2]
-    def __cmp__(self, other):
     def __str__(self):
         return "%s %s %s %s %s" % (self.id, self.chromosome, self.position, self.base_change, self.library_name)
 class SNV(cancerGenomeDB):
