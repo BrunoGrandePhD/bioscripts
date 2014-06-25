@@ -445,7 +445,29 @@ class cancerGenomeDB():
             snvs.append(snv)
 
         return snvs
-
+    def getAlleleDetails(self,mutation_id=None,splice_site_snv_id=None):
+        return(self._getAlleleDetails(mutation_id=mutation_id,splice_site_snv_id=splice_site_snv_id))
+    def _getAlleleDetails(self,mutation_id=None,splice_site_snv_id=None):
+        """Retrieve allele support information from database for a coding SNV or splice site SNV for all samples that have this information populated"""
+        cursor = self.db.cursor()
+        if mutation_id:
+            query = "select sample_id, ref_count, nref_count, variant_allele_fraction, experiment_type, cellularity_estimate from allele_count where mutation_id = %s" % mutation_id
+        elif splice_site_snv_id:
+            query = "select sample_id, ref_count, nref_count, variant_allele_fraction, experiment_type, cellularity_estimate from allele_count,  splice_site_snv where splice_site_snv.event_id = allele_count.event_id and splice_site_snv.id = %s" % splice_site_snv_id
+        else:
+            print "error: you must specify an id for either a splice_site_snv or mutation"
+        
+        cursor.execute(query)
+        sample_allele_data = {}
+        for row in cursor.fetchall():
+            (sample_id,ref_count,nref_count,vaf,exptype,cellularity) = row
+            sample_id =int(sample_id)
+            ref_count = int(ref_count)
+            nref_count = int(nref_count)
+            vaf = float(vaf)
+            cellularity = float(cellularity)
+            sample_allele_data[sample_id]={"ref_count":ref_count,"nref_count":nref_count,"variant_allele_fraction":vaf,"experiment_type":exptype,"cellularity_estimate":cellularity}
+        return sample_allele_data
     def getMutatedGenes(self, only_validated = None, library_name = None, library_object = None, library_id = None, type = None, limits = None):
         """get mutated genes either in entire database or in a single, or list of libraries, either all mutations or coding only"""
         query = 'select distinct gene.id from gene, mutation, library where mutation.gene = gene.ensembl_id and mutation.library_id = library.id'
@@ -1664,7 +1686,20 @@ class cancerGenomeDB():
         gene_types['TP63'] = 'Other'
         return (gene_list, gene_types)
 
-
+class Sample():
+    """Stores all useful details and functions for a sample"""
+    def __init__(self, db_object, sample_id = None, sample_name = None):
+        self.db = db_object
+        cursor = db_object.cursor()
+        if sample_name:
+            query = "select sample.id, sample_id from sample where sample_id  = '%s'" % sample_name
+        elif sample_id:
+            query = "select sample.id, sample_id from sample where sample.id  = %s" % sample_id
+        cursor.execute(query)
+        result = cursor.fetchone()
+        self.id, self.sample_name = result
+    def __str__(self):
+        return "%s %s" % (self.id,self.sample_name)
 class Patient():
     """Stores all useful details and functions for a patient"""
 
