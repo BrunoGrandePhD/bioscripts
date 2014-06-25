@@ -714,22 +714,28 @@ class cancerGenomeDB():
          base_change)
         cursor.execute(query)
         print "added %s to event and %s:%s to somatic_mutation" % (event_id,chromosome,position)
-    def addAlleleDetails(self, sample_id,chromosome,position,parent_library,ref_count,nref_count,experiment_type=None,cellularity_estimate=None):
+    def addAlleleDetails(self, sample_id,chromosome,position,parent_library,ref_count,nref_count,mutation_type="coding",experiment_type=None,cellularity_estimate=None):
         """Add details for the two alleles for a given mutation to the database and link to Mutation and Sample tables.
         Note, data can refer to mutations not in the same library as the sample (e.g. in primary/met pairs). The library the mutation was called in is here referred to as the parent_library.
-        This code will populate the allele_count table."""
+        The allele fraction data need not come from the bam file for library. For example, it could come from another sample from the same patient. This code will populate the allele_count table."""
         cursor = self.db.cursor()
         library_id = parent_library.id
-        mutation_query = "select id from mutation where library_id = %s and chromosome = '%s' and position = %s" % (library_id,chromosome,position)
-        print mutation_query
-        cursor.execute(mutation_query)
-        mutation_id = cursor.fetchone()[0]
+        if mutation_type == "coding":
+            mutation_query = "select id from mutation where library_id = %s and chromosome = '%s' and position = %s" % (library_id,chromosome,position)
+            cursor.execute(mutation_query)
+            mutation_id = cursor.fetchone()[0]
+            check_query = "select count(*) from allele_count where allele_count.mutation_id = %s and sample_id = %s" % (mutation_id,sample_id)
+        elif mutation_type == "splice":
+            mutation_query = "select event_id from splice_site_snv, event where event.id = splice_site_snv.event_id and library_id = %s and chromosome = '%s' and position = %s" % (library_id,chromosome,position)
+            cursor.execute(mutation_query)
+            event_id = cursor.fetchone()[0]
+            check_query = "select count(*) from allele_count where allele_count.event_id = %s and sample_id = %s" % (event_id,sample_id)
         #check that the details for this mutation have not already been added
-        check_query = "select count(*) from allele_count, sample where allele_count.mutation_id = %s and sample.id = %s" % (mutation_id,sample_id)
+        
         cursor.execute(check_query)
         num_records = cursor.fetchone()[0]
         if num_records >0:
-            print "already added this information, skipping"
+            #this data is already in the database
             return()
         #insert data into allele_count table
         if not cellularity_estimate:
@@ -737,7 +743,11 @@ class cancerGenomeDB():
         if not experiment_type:
             experiment_type = 'exome'
         variant_allele_fraction = float(nref_count)/(float(nref_count) + float(ref_count))
-        insert_query = "insert into allele_count(mutation_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate) values(%s,%s,%s,%s,%f,'%s',%f)" % (mutation_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate)
+        #this code will be much cleaner when the mutation table gets linked through the event table
+        if mutation_type == 'coding':
+            insert_query = "insert into allele_count(mutation_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate) values(%s,%s,%s,%s,%f,'%s',%f)" % (mutation_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate)
+        elif mutation_type == 'splice':
+            insert_query = "insert into allele_count(event_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate) values(%s,%s,%s,%s,%f,'%s',%f)" % (event_id,sample_id,ref_count,nref_count,variant_allele_fraction,experiment_type,cellularity_estimate)
         cursor.execute(insert_query)
 
     def addMutation(self, library_id, chromosome, position, ensembl_gene_id, base_change, status=None, protein_altering=None, annotation=None, validation_outcome=None, cdna_change = None, to_validate=None,identifiers=None, splice_site=None, mutation_seq_probability=None, triplet=None, tumour_ref = None, tumour_nref = None, normal_ref = None, normal_nref = None,transcript=None,sift_score=None,polyphen_score=None,mutation_ass_score=None,ref_base=None,nref_base=None):
