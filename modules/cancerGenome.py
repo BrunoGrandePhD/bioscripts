@@ -1022,7 +1022,7 @@ class cancerGenomeDB():
             print "event: %i" % event_id
             #now add cnv details
             size = cnv_details['end'] - cnv_details['start'] +1
-            query = "insert into cnv (event_id,chromosome,segment_start,segment_end,segment_state,size,segment_mean,num_markers) VALUES(%i,'%s',%i,%i,%i,%i,%f,%s)" % (event_id,cnv_details['chromosome'],cnv_details['start'],cnv_details['end'],cnv_details['state'],size,cnv_details['segment_mean'],cnv_details['num_markers'])
+            query = "insert into cnv (event_id,chromosome,segment_start,segment_end,segment_state,size,type) VALUES(%i,'%s',%i,%i,%i,%i,'%s')" % (event_id,cnv_details['chromosome'],cnv_details['start'],cnv_details['end'],cnv_details['state'],size,'somatic')
             cursor.execute(query)
             counter+=1
             #now populate 'gene_event' table based on genes in region
