@@ -721,6 +721,7 @@ class cancerGenomeDB():
         cursor = self.db.cursor()
         library_id = parent_library.id
         mutation_query = "select id from mutation where library_id = %s and chromosome = '%s' and position = %s" % (library_id,chromosome,position)
+        print mutation_query
         cursor.execute(mutation_query)
         mutation_id = cursor.fetchone()[0]
         #check that the details for this mutation have not already been added
@@ -3375,6 +3376,9 @@ class SpliceSiteSNV():
         self.validation_outcome = validation_outcome
         self.library_name = library_name
         self.sample_name= sample_name
+        self.reference_base = base_change[0]
+        self.nonreference_base = base_change[2]
+    def __cmp__(self, other):
     def __str__(self):
         return "%s %s %s %s %s" % (self.id, self.chromosome, self.position, self.base_change, self.library_name)
 class SNV(cancerGenomeDB):
