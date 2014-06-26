@@ -48,7 +48,7 @@ class cancerGenomeDB():
             snv = SNV(self.db,snv_id,genome_wide=True)
             snvs.append(snv)
         return snvs
-    def getLibraries(self, type = None, sample_name = None, sample_id = None, subtype = None, sample_type = None, patient_id = None):
+    def getLibraries(self, type = None, sample_name = None, sample_id = None, subtype = None, sample_type = None, patient_id = None, treatment = None):
         """get libraries for all/some samples of a given (or all) library types such as genome, RNA-seq"""
         query = 'select library.id from library, sample where sample.id = library.sample_id '
         if type:
@@ -71,6 +71,8 @@ class cancerGenomeDB():
             query = query + ' and sample.sample_id = "%s"' % sample_name
         elif sample_id:
             query = query + ' and sample.id = %s' % sample_id
+        elif treatment:
+            query = query + " and treatment = '%s'" % treatment
         cursor = self.db.cursor()
         print query
         cursor.execute(query)
@@ -96,10 +98,68 @@ class cancerGenomeDB():
         objects = []
         for result in cursor.fetchall():
             sss_id = result[0]
-            print "splice site ID: %s" % sss_id
+            #print "splice site ID: %s" % sss_id
             splice_obj = SpliceSiteSNV(self.db,sss_id)
             objects.append(splice_obj)
         return(objects)
+    def getSpectrum(self,library_id):
+        '''Determine the frequency of each of the six base changes in a library and return this result (ignoring upstream and downstream base context)'''
+        #WARNING: CURRENTLY IGNORES SPLICE SITE SNVS!
+        cursor = self.db.cursor()
+        spectrum = {}
+        CT = 0
+        query = "select count(*) from mutation where library_id = %s and (ref_base ='C' and nref_base = 'T' or ref_base = 'G' and nref_base ='A')" % library_id
+        #print query
+        cursor.execute(query)
+        try:
+            CT = cursor.fetchone()[0]
+        except TypeError:
+            print "none for CT"
+            pass
+        query = "select count(*) from mutation where library_id = %s and (ref_base ='C' and nref_base = 'A' or ref_base = 'G' and nref_base ='T')" % library_id
+        CA = 0
+        cursor.execute(query)
+        try:
+            CA = cursor.fetchone()[0]
+        except TypeError:
+            print "none for CT"
+            pass
+        query = "select count(*) from mutation where library_id = %s and (ref_base ='C' and nref_base = 'G' or ref_base = 'G' and nref_base ='C')" % library_id
+        CG = 0
+        cursor.execute(query)
+        try:
+            CG = cursor.fetchone()[0]
+        except TypeError:
+            pass
+        query = "select count(*) from mutation where library_id = %s and (ref_base ='T' and nref_base = 'A' or ref_base = 'A' and nref_base ='T')" % library_id
+        TA = 0
+        cursor.execute(query)
+        try:
+            TA = cursor.fetchone()[0]
+        except TypeError:
+            pass
+        TG = 0
+        query = "select count(*) from mutation where library_id = %s and (ref_base ='T' and nref_base = 'G' or ref_base = 'A' and nref_base ='C')" % library_id
+        cursor.execute(query)
+        try:
+            TG = cursor.fetchone()[0]
+        except TypeError:
+            pass
+        
+        query = "select count(*) from mutation where library_id = %s and (ref_base ='T' and nref_base = 'C' or ref_base = 'A' and nref_base ='G')" % library_id
+        cursor.execute(query)
+        TC = 0
+        try:
+            TC = cursor.fetchone()[0]
+        except TypeError:
+            pass
+        spectrum["CT"] = int(CT)
+        spectrum["CA"] = int(CA)
+        spectrum["CG"] = int(CG)
+        spectrum["TA"] = int(TA)
+        spectrum["TC"] = int(TC)
+        spectrum["TG"] = int(TG)
+        return spectrum
     def getFusions(self,library_id=None,confirmed=None):
         return(self._getFusions(library_id=library_id,confirmed=confirmed))
     def _getFusions(self,library_id=None,confirmed=None):
@@ -1718,7 +1778,7 @@ class Patient():
         else:
             print 'no unique identifier provided'
             exit()
-        print query
+        #print query
         cursor.execute(query)
         result = cursor.fetchone()
         self.sample_id, self.id, self.res_id, self.sample_name, self.sex = result
@@ -3421,11 +3481,12 @@ class SpliceSiteSNV():
         self.db = db_object
         cursor = db_object.cursor()
         query = 'select gene_id, event.id, chromosome, position, base_change, validation_outcome, library_name, sample.sample_id from sample, gene_event, splice_site_snv, event, library where sample.id = library.sample_id and library.id = event.library_id and splice_site_snv.event_id = event.id and gene_event.event_id = event.id and splice_site_snv.id = %s' % splice_site_snv_id
-        print query
+        #print query
         cursor.execute(query)
         (gene_id,event_id,chrom,pos,base_change,validation_outcome,library_name,sample_name) = cursor.fetchone()
         gene_obj = Gene(db_object,gene_id=gene_id)
         self.gene = gene_obj
+        self.gene_id = gene_id
         self.id = splice_site_snv_id
         self.event_id = event_id
         self.chromosome = chrom
