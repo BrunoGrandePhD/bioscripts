@@ -88,7 +88,7 @@ class cancerGenomeDB():
         return(self._getSpliceSiteSNVs(library_id=library_id,gene=gene))
     def _getSpliceSiteSNVs(self,library_id=None,gene=None):
         cursor = self.db.cursor()
-        query = "select splice_site_snv.id from splice_site_snv, event where event.id = splice_site_snv.event_id"
+        query = "select splice_site_snv.id from splice_site_snv, event, gene_event where event.id = splice_site_snv.event_id and gene_event.event_id = event.id"
         if gene:
             query = "select splice_site_snv.id from splice_site_snv, event, gene_event where gene_event.event_id = event.id and event.id = splice_site_snv.event_id and gene_event.gene_id = %s" % (gene.id)
         if library_id:
@@ -3481,7 +3481,7 @@ class SpliceSiteSNV():
         self.db = db_object
         cursor = db_object.cursor()
         query = 'select gene_id, event.id, chromosome, position, base_change, validation_outcome, library_name, sample.sample_id from sample, gene_event, splice_site_snv, event, library where sample.id = library.sample_id and library.id = event.library_id and splice_site_snv.event_id = event.id and gene_event.event_id = event.id and splice_site_snv.id = %s' % splice_site_snv_id
-        #print query
+        print query
         cursor.execute(query)
         (gene_id,event_id,chrom,pos,base_change,validation_outcome,library_name,sample_name) = cursor.fetchone()
         gene_obj = Gene(db_object,gene_id=gene_id)
