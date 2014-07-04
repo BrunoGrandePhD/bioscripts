@@ -423,7 +423,7 @@ class cancerGenomeDB():
 
     def _getIndels(self, library_name = None, library_id = None, type = None, limits = None):
         """get the indels from the database either from a given library or for all libraries with flexible limits allowed"""
-        query = "select indel.id from library, indel, event where event.id = indel.event_id and event.library_id = library.id and validator_result = 'somatic'"
+        query = "select indel.id from library, indel, event where event.id = indel.event_id and event.library_id = library.id"
         cursor = self.db.cursor()
         if library_name:
             if isinstance(library_name, list):
@@ -3338,12 +3338,13 @@ class Indel(cancerGenomeDB):
         self.db = db_object
         self.id = indel_id
         cursor = self.db.cursor()
-        query = 'select gene.id, gene.chromosome, start, end, length, event_type, alt, contig, event.to_validate, event.library_id, sample.sample_id, indel.validation_outcome from indel, event, gene_event, gene, library, sample where sample.id = library.sample_id and library.id = event.library_id and gene.id = gene_event.gene_id and event.id = indel.event_id and gene_event.event_id = event.id and indel.id = %s' % indel_id
+        query = 'select gene.id, gene.chromosome, start, end, length, event_type, alt, event.to_validate, event.library_id, sample.sample_id, indel.validation_outcome from indel, event, gene_event, gene, library, sample where sample.id = library.sample_id and library.id = event.library_id and gene.id = gene_event.gene_id and event.id = indel.event_id and gene_event.event_id = event.id and indel.id = %s' % indel_id
         cursor.execute(query)
+        #print query
         gene_obj = []
         first = 1
         for results in cursor.fetchall():
-            (gene_id, chromosome, start, end, length, event_type, alt, contigs, to_validate, library_id, sample_name, validation_outcome) = results
+            (gene_id, chromosome, start, end, length, event_type, alt, to_validate, library_id, sample_name, validation_outcome) = results
             if first:
                 self.chromosome = chromosome
                 self.start = start
@@ -3354,12 +3355,12 @@ class Indel(cancerGenomeDB):
                 self.library_id = library_id
                 self.library = Library(self.db,library_id=library_id)
                 self.sample_name = sample_name
-                self.contigs = contigs
                 if to_validate == 'yes':
                     self.to_validate = True
                 else:
                     self.to_validate = None
                 self.validation_outcome = validation_outcome
+            self.gene_id = gene_id
             gene_ob = Gene(db_object, gene_id=gene_id)
             gene_obj.append(gene_ob)
 
@@ -3481,7 +3482,7 @@ class SpliceSiteSNV():
         self.db = db_object
         cursor = db_object.cursor()
         query = 'select gene_id, event.id, chromosome, position, base_change, validation_outcome, library_name, sample.sample_id from sample, gene_event, splice_site_snv, event, library where sample.id = library.sample_id and library.id = event.library_id and splice_site_snv.event_id = event.id and gene_event.event_id = event.id and splice_site_snv.id = %s' % splice_site_snv_id
-        print query
+        #print query
         cursor.execute(query)
         (gene_id,event_id,chrom,pos,base_change,validation_outcome,library_name,sample_name) = cursor.fetchone()
         gene_obj = Gene(db_object,gene_id=gene_id)
