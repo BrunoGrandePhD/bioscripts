@@ -3337,13 +3337,16 @@ class Indel(cancerGenomeDB):
     def __init__(self, db_object, indel_id):
         self.db = db_object
         self.id = indel_id
+        #print "creating object for %s" % indel_id
         cursor = self.db.cursor()
         query = 'select gene.id, gene.chromosome, start, end, length, event_type, alt, event.to_validate, event.library_id, sample.sample_id, indel.validation_outcome from indel, event, gene_event, gene, library, sample where sample.id = library.sample_id and library.id = event.library_id and gene.id = gene_event.gene_id and event.id = indel.event_id and gene_event.event_id = event.id and indel.id = %s' % indel_id
         cursor.execute(query)
+        self.gene_id = None
         #print query
         gene_obj = []
         first = 1
         for results in cursor.fetchall():
+            print results
             (gene_id, chromosome, start, end, length, event_type, alt, to_validate, library_id, sample_name, validation_outcome) = results
             if first:
                 self.chromosome = chromosome
@@ -3363,8 +3366,15 @@ class Indel(cancerGenomeDB):
             self.gene_id = gene_id
             gene_ob = Gene(db_object, gene_id=gene_id)
             gene_obj.append(gene_ob)
-
+        #print results
         self.genes = gene_obj
+        #now handle any indels with no record in gene_event table
+        if not self.gene_id:
+            query = 'select chromosome, start, end, alt, event.to_validate, event.library_id, sample.sample_id, indel.validation_outcome from indel, event, library, sample where sample.id = library.sample_id and library.id = event.library_id and event.id = indel.event_id and indel.id = %s' % indel_id
+            cursor.execute(query)
+            results = cursor.fetchone()
+            (self.chromosome, self.start, self.end, self.alt, self.to_validate, self.library_id, self.sample_name, self.validation_outcome) = results
+            self.library = Library(self.db,library_id=self.library_id)
     def __str__(self):
         return "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" % (self.library.library_name,self.sample_name,self.type,self.id,self.chromosome,self.start,self.end, self.validation_outcome)
     def associatedCNV(self,window_size = 5000):
