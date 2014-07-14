@@ -1029,11 +1029,11 @@ class cancerGenomeDB():
         to the corresponding entry in the `gene` table.
         Method written by Bruno Grande.
         '''
-        # Example row in the file
-        # ENST00000593546 ENSG00000268612         2255    32      850
+        # Example row in the file (notice the double tab after the gene Ensembl ID)
+        # ENST00000593546\tENSG00000268612\t\t2255\t32\t850
         cursor = self.db.cursor()
         file_handle = open(filepath)
-        column_names = ('transcript_ens_id', 'gene_ens_id', 'length', 'cds_start', 'cds_end')
+        column_names = ('transcript_ens_id', 'gene_ens_id', 'nothing', 'length', 'cds_start', 'cds_end')
         for line in file_handle:
             transcript_dict = dict(zip(column_names, line.rstrip().split('\t')))
             # Obtain gene ID from the gene table using the Ensembl ID
