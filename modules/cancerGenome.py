@@ -145,7 +145,7 @@ class cancerGenomeDB():
             TG = cursor.fetchone()[0]
         except TypeError:
             pass
-        
+
         query = "select count(*) from mutation where library_id = %s and (ref_base ='T' and nref_base = 'C' or ref_base = 'A' and nref_base ='G')" % library_id
         cursor.execute(query)
         TC = 0
@@ -254,10 +254,10 @@ class cancerGenomeDB():
         return gene_objects
 
     def getGenesWithinRegion(self, chromosome, start, end):
-        """Gets all genes entirely encompassed within a region
+        '''Gets all genes entirely encompassed within a region
         (i.e., excluding those at the start and end).
         Method written by Bruno Grande.
-        """
+        '''
         cursor = self.db.cursor()
         region = {
             'region_chromosome': chromosome,
@@ -273,11 +273,11 @@ class cancerGenomeDB():
         return gene_instances
 
     def getGenesAtPosition(self, chromosome, position, padding=1000):
-        """Gets all overlapping genes at a given position.
+        '''Gets all overlapping genes at a given position.
         The padding keyword argument adds a margin around genes
         as a way to roughly include regulatory elements.
         Method written by Bruno Grande.
-        """
+        '''
         cursor = self.db.cursor()
         locus = {
             'chromosome': chromosome,
@@ -516,7 +516,7 @@ class cancerGenomeDB():
             query = "select sample_id, ref_count, nref_count, variant_allele_fraction, experiment_type, cellularity_estimate from allele_count,  splice_site_snv where splice_site_snv.event_id = allele_count.event_id and splice_site_snv.id = %s" % splice_site_snv_id
         else:
             print "error: you must specify an id for either a splice_site_snv or mutation"
-        
+
         cursor.execute(query)
         sample_allele_data = {}
         for row in cursor.fetchall():
@@ -778,7 +778,7 @@ class cancerGenomeDB():
             cnv_cols = cnv_line.rstrip().split("\t")
             # Skip header line
             if cnv_cols[0] == "Sample":
-                return cnv_data 
+                return cnv_data
             cnv_data['chromosome'] = cnv_cols[1]
             cnv_data['start'] = int(float(cnv_cols[2]))
             cnv_data['end'] = int(float(cnv_cols[3]))
@@ -826,7 +826,7 @@ class cancerGenomeDB():
             event_id = cursor.fetchone()[0]
             check_query = "select count(*) from allele_count where allele_count.event_id = %s and sample_id = %s" % (event_id,sample_id)
         #check that the details for this mutation have not already been added
-        
+
         cursor.execute(check_query)
         num_records = cursor.fetchone()[0]
         if num_records >0:
@@ -1024,20 +1024,28 @@ class cancerGenomeDB():
         query = "insert into loh (event_id, chromosome, segment_start, segment_end, size, bin_count, copy_number, loh_state, Major_allele_count, minor_allele_count) values (%s,'%s',%s,%s,%s,%s,%s,'%s',%s,%s)" % (event_id,chromosome, segment_start, segment_end, size, bin_count, copy_number, loh_state, Major_allele_count, minor_allele_count)
         cursor.execute(query)
         return 1
-    def loadTranscripts(self,file):
-        '''load all ensembl transcripts into the db and link to gene table'''
-        #ENSE00003051371	ENST00000593546	1	272	26597180	26597451	1	-1	1
+    def loadTranscripts(self,filepath):
+        '''Loads Ensembl transcripts into database while properly linking
+        to the corresponding entry in the `gene` table.
+        Method written by Bruno Grande.
+        '''
+        # Example row in the file
+        # ENST00000593546 ENSG00000268612         2255    32      850
         cursor = self.db.cursor()
-        handle = open(file,"r")
-        for line in handle:
-            line = line.rstrip()
-            (ense,enst,tstart,tend,gstart,gend,strand,phase,end_phase) = line.split()
-            query = "select id from transcript where ensembl_id = '%s'" % (enst)
-            cursor.execute(query)
-            trans_id = int(cursor.fetchone()[0])
-            query = "insert into exon (transcript_id,ensembl_id,transcript_start,transcript_end,genome_start,genome_end,strand,phase,end_phase) values(%s,'%s',%s,%s,%s,%s,%s,%s,%s)" % (trans_id,ense,tstart,tend,gstart,gend,strand,phase,end_phase)
+        file_handle = open(filepath)
+        column_names = ('transcript_ens_id', 'gene_ens_id', 'length', 'cds_start', 'cds_end')
+        for line in file_handle:
+            transcript_dict = dict(zip(column_names, line.rstrip().split('\t')))
+            # Obtain gene ID from the gene table using the Ensembl ID
+            query = 'SELECT id FROM gene WHERE "ensembl_id" = {gene_ens_id}'.format(**transcript_dict)
             print query
             cursor.execute(query)
+            transcript_dict['gene_id'] = int(cursor.fetchone()[0])
+            # Add the transcript to the database while linking to the gene
+            query = 'INSERT INTO transcript (ensembl_id, gene_id, length, cds_start, cds_end) VALUES ("{transcript_ens_id}", {gene_id}, {length}, {cds_start}, {cds_end})'.format(**transcript_dict)
+            print query
+            cursor.execute(query)
+
     def loadExons(self,file):
         '''load all ensembl exons into the db and link to transcript table'''
         #ENSE00003051371	ENST00000593546	1	272	26597180	26597451	1	-1	1
@@ -1390,11 +1398,11 @@ class cancerGenomeDB():
                 cursor.execute(query)
 
     def addGenomicBreak(self, library_id, chromosome, position, side, nature):
-        """Creates a new genomic_break entry in database for a given library.
+        '''Creates a new genomic_break entry in database for a given library.
         Returns the id for the newly created genomic_break entry.
         If the entry already exists, returns its ID.
         Method written by Bruno Grande.
-        """
+        '''
         cursor = self.db.cursor()
         genomic_break = {
             'library_id': library_id,
@@ -1446,12 +1454,12 @@ class cancerGenomeDB():
 
     def addSvCnv(self, library_id, chromosome, segment_start, segment_end, segment_state,
                  nature):
-        """Creates a new cnv entry in the database for a given library.
+        '''Creates a new cnv entry in the database for a given library.
         This is for CNVs found by ABySS.
         Returns the id for the newly created cnv entry.
         If the entry already exists, returns its ID.
         Method written by Bruno Grande and Marija Jovanovic.
-        """
+        '''
         cursor = self.db.cursor()
         cnv = {
             'library_id': library_id,
@@ -1512,11 +1520,11 @@ class cancerGenomeDB():
     def addStructuralVariant(self, library_id, break1_chromosome, break1_position, break1_side,
                              break2_chromosome, break2_position, break2_side, sv_type,
                              num_read_pairs, num_spanning_reads, status):
-        """Creates a new structural_variant entry in database combining two genomic_break entries.
+        '''Creates a new structural_variant entry in database combining two genomic_break entries.
         Returns the id for the newly created structural_variant entry.
         If the entry already exists, returns its ID.
         Method written by Bruno Grande.
-        """
+        '''
         cursor = self.db.cursor()
         structural_variant = {
             'break1_chromosome': break1_chromosome,
@@ -1609,7 +1617,7 @@ class cancerGenomeDB():
         cursor.execute(check_query)
         num = cursor.fetchone()[0]
         if num:
-            
+
             query = "select id from sample where sample_id = '%s' and sample_type = '%s'" % (sample_name, sample_type)
             print query
             cursor.execute(query)
