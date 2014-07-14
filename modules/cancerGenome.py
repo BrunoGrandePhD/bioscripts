@@ -1037,7 +1037,7 @@ class cancerGenomeDB():
         for line in file_handle:
             transcript_dict = dict(zip(column_names, line.rstrip().split('\t')))
             # Obtain gene ID from the gene table using the Ensembl ID
-            query = 'SELECT id FROM gene WHERE "ensembl_id" = {gene_ens_id}'.format(**transcript_dict)
+            query = 'SELECT id FROM gene WHERE ensembl_id = "{gene_ens_id}"'.format(**transcript_dict)
             print query
             cursor.execute(query)
             transcript_dict['gene_id'] = int(cursor.fetchone()[0])
