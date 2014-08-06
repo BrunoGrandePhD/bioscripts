@@ -1183,12 +1183,12 @@ class cancerGenomeDB():
         if coverage_type == "library":
             #will record the average coverage across all exonic regions
             #for speed, this can just be parsed from the end of the summarized coverage file (output by summarize_bedcoverage.pl)
-            average_depth = total_bases / region_size
+            average_depth = float(total_bases) / float(region_size)
             library_id = library.id
             if cutoff:
-                query = "insert into coverage (total_bases,average_depth,cutoff,fraction_above_cutoff) values(%f,%s,%f,%f)" % (total_bases,average_depth,cutoff,fraction_above_cutoff)
+                query = "insert into coverage (total_bases,average_depth,feature_size,cutoff,fraction_above_cutoff) values(%f,%s,%i,%f,%f)" % (total_bases,average_depth,region_size,cutoff,fraction_above_cutoff)
             else:
-                query = "insert into coverage (total_bases,average_depth) values(%f,%s)" % (total_bases,average_depth)
+                query = "insert into coverage (total_bases,average_depth,feature_size) values(%f,%s,%i)" % (total_bases,average_depth,region_size)
             cursor.execute(query)
             query ="select last_insert_id()"
             cursor.execute(query)
@@ -1196,7 +1196,7 @@ class cancerGenomeDB():
             query = "insert into library_coverage (library_id,coverage_id) values(%s,%s)" % (library_id,cov_id)
             cursor.execute(query)
         elif coverage_type == "gene":
-            average_depth = total_bases / region_size
+            average_depth = float(total_bases) / float(region_size)
             gene_id = gene.id
             library_id = library.id
             #check if already present
@@ -1211,9 +1211,9 @@ class cancerGenomeDB():
             #will record the average coverage across all exons of a specified gene
             #first add coverage information
             if cutoff:
-                query = "insert into coverage (total_bases,average_depth,cutoff,fraction_above_cutoff) values(%f,%s,%f,%f)" % (total_bases,average_depth,cutoff,fraction_above_cutoff)
+                query = "insert into coverage (total_bases,average_depth,feature_size,cutoff,fraction_above_cutoff) values(%f,%s,%i,%f,%f)" % (total_bases,average_depth,region_size,cutoff,fraction_above_cutoff)
             else:
-                query = "insert into coverage (total_bases,average_depth) values(%f,%s)" % (total_bases,average_depth)
+                query = "insert into coverage (total_bases,average_depth,feature_size) values(%f,%s,%i)" % (total_bases,average_depth,region_size)
             cursor.execute(query)
             query ="select last_insert_id()"
             cursor.execute(query)
@@ -1823,7 +1823,7 @@ class Library(cancerGenomeDB):
     """stores all useful details and functions for a library"""
 
     def __init__(self, db_object, library_id = None, library_name = None, sample_name = None, force_create = None):
-        self.db = db_object
+        self.db_object = db_object
         #query = 'select library.id, library_name, library_type, sample.sample_id, sample.subtype, patient.res_id, patient.id, bam_location, reference_genome_fasta, average_coverage from sample, library, patient where patient.id = sample.patient_id and library.sample_id = sample.id and '
         query = 'select library.id, library_name, library_type, sample.sample_id, sample.subtype, patient.res_id, patient.id from sample, library, patient where patient.id = sample.patient_id and library.sample_id = sample.id and '
         if library_id:
@@ -1833,7 +1833,7 @@ class Library(cancerGenomeDB):
         else:
             print 'no library_id or library_name specified'
             exit()
-        cursor = self.db.cursor()
+        cursor = self.db_object.db.cursor()
         cursor.execute(query)
         data = cursor.fetchone()
         #print data
@@ -1947,7 +1947,7 @@ class Gene(cancerGenomeDB):
 
     def __init__(self, db_object, gene_id = None, ensembl_id = None, gene_symbol = None, gene_name= None):
         """collect useful details from the database for a gene based on its id or ensembl_id"""
-        self.db = db_object
+        self.db_object = db_object
         query = 'select id, ensembl_id, gene_symbol, chromosome, start_position, end_position, biotype from gene where '
         if gene_id:
             query = query + 'id = %i' % gene_id
@@ -1960,7 +1960,7 @@ class Gene(cancerGenomeDB):
         else:
             print 'No gene_id or ensembl_id specified'
             exit()
-        cursor = self.db.cursor()
+        cursor = self.db_object.db.cursor()
         #print query
         #exit()
         cursor.execute(query)
