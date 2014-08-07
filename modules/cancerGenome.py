@@ -1820,7 +1820,7 @@ class Library(cancerGenomeDB):
     """stores all useful details and functions for a library"""
 
     def __init__(self, db_object, library_id = None, library_name = None, sample_name = None, force_create = None):
-        cursor = self.db.cursor()
+        self.db = db_object
         #query = 'select library.id, library_name, library_type, sample.sample_id, sample.subtype, patient.res_id, patient.id, bam_location, reference_genome_fasta, average_coverage from sample, library, patient where patient.id = sample.patient_id and library.sample_id = sample.id and '
         query = 'select library.id, library_name, library_type, sample.sample_id, sample.subtype, patient.res_id, patient.id from sample, library, patient where patient.id = sample.patient_id and library.sample_id = sample.id and '
         if library_id:
