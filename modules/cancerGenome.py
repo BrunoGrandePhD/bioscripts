@@ -1823,7 +1823,7 @@ class Library(cancerGenomeDB):
     """stores all useful details and functions for a library"""
 
     def __init__(self, db_object, library_id = None, library_name = None, sample_name = None, force_create = None):
-        self.db_object = db_object
+        self.db = db_object
         #query = 'select library.id, library_name, library_type, sample.sample_id, sample.subtype, patient.res_id, patient.id, bam_location, reference_genome_fasta, average_coverage from sample, library, patient where patient.id = sample.patient_id and library.sample_id = sample.id and '
         query = 'select library.id, library_name, library_type, sample.sample_id, sample.subtype, patient.res_id, patient.id from sample, library, patient where patient.id = sample.patient_id and library.sample_id = sample.id and '
         if library_id:
@@ -1833,7 +1833,7 @@ class Library(cancerGenomeDB):
         else:
             print 'no library_id or library_name specified'
             exit()
-        cursor = self.db_object.db.cursor()
+        cursor = self.db.cursor()
         cursor.execute(query)
         data = cursor.fetchone()
         #print data
@@ -1947,7 +1947,7 @@ class Gene(cancerGenomeDB):
 
     def __init__(self, db_object, gene_id = None, ensembl_id = None, gene_symbol = None, gene_name= None):
         """collect useful details from the database for a gene based on its id or ensembl_id"""
-        self.db_object = db_object
+        self.db = db_object
         query = 'select id, ensembl_id, gene_symbol, chromosome, start_position, end_position, biotype from gene where '
         if gene_id:
             query = query + 'id = %i' % gene_id
@@ -1960,7 +1960,7 @@ class Gene(cancerGenomeDB):
         else:
             print 'No gene_id or ensembl_id specified'
             exit()
-        cursor = self.db_object.db.cursor()
+        cursor = self.db.cursor()
         #print query
         #exit()
         cursor.execute(query)
