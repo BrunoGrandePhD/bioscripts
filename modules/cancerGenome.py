@@ -1,4 +1,4 @@
-import MySQLdb
+import pymysql
 import re
 
 class cancerGenomeDB():
@@ -28,7 +28,7 @@ class cancerGenomeDB():
             self.host = database_host
         else:
             self.host = 'jango.bcgsc.ca'
-        db = MySQLdb.connect(host=self.host, user=self.user, passwd=self.password, db=self.database)
+        db = pymysql.connect(host=self.host, user=self.user, passwd=self.password, db=self.database)
         self.db = db
 
     def getSomaticSNVs(self,library=None):
