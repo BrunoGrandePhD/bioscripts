@@ -84,16 +84,19 @@ class cancerGenomeDB():
             libraries.append(library)
 
         return libraries
-    def getSpliceSiteSNVs(self,library_id=None,gene=None):
+    def getSpliceSiteSNVs(self,library_id=None,gene=None,limits = None):
         return(self._getSpliceSiteSNVs(library_id=library_id,gene=gene))
-    def _getSpliceSiteSNVs(self,library_id=None,gene=None):
+    def _getSpliceSiteSNVs(self,library_id=None,gene=None,limits = None):
         cursor = self.db.cursor()
-        query = "select splice_site_snv.id from splice_site_snv, event, gene_event where event.id = splice_site_snv.event_id and gene_event.event_id = event.id"
+        query = "select splice_site_snv.id from splice_site_snv, event, gene_event, library, sample where sample.id = library.sample_id and event.library_id = library.id  and event.id = splice_site_snv.event_id and gene_event.event_id = event.id"
         if gene:
-            query = "select splice_site_snv.id from splice_site_snv, event, gene_event where gene_event.event_id = event.id and event.id = splice_site_snv.event_id and gene_event.gene_id = %s" % (gene.id)
+            query = "select splice_site_snv.id from splice_site_snv, event, gene_event, library, sample where sample.id = library.sample_id and event.library_id = library.id and gene_event.event_id = event.id and event.id = splice_site_snv.event_id and gene_event.gene_id = %s" % (gene.id)
         if library_id:
             query = query + " and library_id = %s" % library_id
-
+        if limits:
+            for key in limits:
+                query = query + ' and %s %s' % (key, limits[key])
+        print query
         cursor.execute(query)
         objects = []
         for result in cursor.fetchall():
@@ -423,7 +426,7 @@ class cancerGenomeDB():
 
     def _getIndels(self, library_name = None, library_id = None, type = None, limits = None):
         """get the indels from the database either from a given library or for all libraries with flexible limits allowed"""
-        query = "select indel.id from library, indel, event where event.id = indel.event_id and event.library_id = library.id"
+        query = "select indel.id from library, indel, event, gene_event, gene where gene.id = gene_event.gene_id and gene_event.event_id = event.id and event.id = indel.event_id and event.library_id = library.id"
         cursor = self.db.cursor()
         if library_name:
             if isinstance(library_name, list):
@@ -446,7 +449,7 @@ class cancerGenomeDB():
             else:
                 query = query + " and library.id = '%s'" % library_id
         else:
-            query = 'select indel.id from indel, event where event.id = indel.event_id '
+            query = 'select indel.id from indel, event, gene_event, gene, library, sample where sample.id = library.sample_id and library.id = event.library_id and event.id = indel.event_id and gene.id = gene_event.gene_id and gene_event.event_id = event.id'
         if limits:
             for key in limits:
                 query = query + ' and %s %s' % (key, limits[key])
@@ -464,7 +467,7 @@ class cancerGenomeDB():
     def _getMutations(self, library_name = None, library_id = None, type = None, limits = None):
         """get the mutations from the database either from a given library or for all libraries with flexible limits allowed"""
         #query = 'select mutation.id from gene, mutation, library where mutation.gene = gene.ensembl_id and mutation.library_id = library.id and validation_outcome not in ("false","unclear","germline")'
-        query = 'select mutation.id from gene, mutation, library where mutation.gene = gene.ensembl_id and mutation.library_id = library.id'
+        query = 'select mutation.id from gene, mutation, library, sample, patient where patient.id = sample.patient_id and sample.id = library.sample_id and mutation.gene = gene.ensembl_id and mutation.library_id = library.id'
         #print query
         #print library_name
         cursor = self.db.cursor()
@@ -489,7 +492,7 @@ class cancerGenomeDB():
             else:
                 query = query + " and library.id = '%s'" % library_id
         else:
-            query = 'select mutation.id from gene, mutation, library where mutation.library_id = library.id and mutation.gene = gene.ensembl_id'
+            query = 'select mutation.id from gene, mutation, library, sample where sample.id = library.sample_id and mutation.library_id = library.id and mutation.gene = gene.ensembl_id'
             #print query
         if limits:
             for key in limits:
@@ -1871,7 +1874,7 @@ class Library(cancerGenomeDB):
             self.patient_id = None
     def __str__(self):
         return "%s %s" % (self.library_name,self.sample_name)
-    def getSpliceSiteSNVs(self):
+    def getSpliceSiteSNVs(self,limits = None):
         return cancerGenomeDB._getSpliceSiteSNVs(self,library_id=self.id)
     def getIndels(self,limits=None):
         """Call the getIndels function specifying this library"""
@@ -3383,6 +3386,14 @@ class Indel(cancerGenomeDB):
             results = cursor.fetchone()
             (self.chromosome, self.start, self.end, self.alt, self.to_validate, self.library_id, self.sample_name, self.validation_outcome) = results
             self.library = Library(self.db,library_id=self.library_id)
+        #try to get the annotation for this indel
+        query = "select annotation from indel where id = %s" % self.id
+        try:
+            cursor.execute(query)
+            self.annotation = cursor.fetchone()[0]
+        except AttributeError:
+            print "no annotation for this indel"
+            pass
     def __str__(self):
         return "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" % (self.library.library_name,self.sample_name,self.type,self.id,self.chromosome,self.start,self.end, self.validation_outcome)
     def associatedCNV(self,window_size = 5000):
@@ -3516,6 +3527,126 @@ class SpliceSiteSNV():
         self.sample_name= sample_name
         self.reference_base = base_change[0]
         self.nonreference_base = base_change[2]
+    def asMAF(self,for_mutsig = None,fake_id=None):
+        '''return MAF formatted version of variant'''
+        #WARNING: This code has not yet been tested
+        maf_fields = {}
+        #dummy values and defaults
+        if fake_id:
+            maf_fields['Entrez_Gene_Id'] = fake_id
+        else:
+            maf_fields['Entrez_Gene_Id'] = 1
+        maf_fields['Center'] = "bcgsc.ca"
+        maf_fields['NCBI_Build'] = 'hg18'
+        maf_fields['BAM_file'] = 'fake'
+        maf_fields['Strand'] = "+"
+        maf_fields['Tumor_Seq_Allele2'] = ""
+        maf_fields['Genome_Change'] = self.base_change
+        maf_fields['dbSNP_RS'] = 'novel'
+        maf_fields['dbSNP_Val_Status']=''
+        maf_fields['Variant_Type'] = 'SNP'
+        if hasattr(self,'gene_id'):
+            gene_obj = Gene(self.db, gene_id=self.gene_id)
+            if gene_obj.gene_symbol == "":
+                gene_obj.gene_symbol = gene_obj.gene_id
+            maf_fields['Hugo_Symbol'] = gene_obj.gene_symbol
+        else:
+            maf_fields['Hugo_Symbol'] = "-"
+        #print maf_fields['Hugo_Symbol']
+        maf_fields['Chromosome'] = self.chromosome
+        maf_fields['Start_position'] = self.position
+        maf_fields['End_position'] = self.position
+        
+        maf_fields['Variant_Classification'] = 'Splice_Site'
+        (ref,mut) = self.base_change.split(">")
+        maf_fields['Annotation_Transcript'] = "none"
+        maf_fields['Transcript_Strand'] = "+"
+        maf_fields['Transcript_Exon'] = 1
+        maf_fields['Transcript_Position'] = 1
+        maf_fields['cDNA_Change'] = 1
+        maf_fields['Codon_Change'] = 1
+        maf_fields['Protein_Change'] = self.annotation
+        maf_fields['Reference_Allele'] = ref
+        maf_fields['Tumor_Seq_Allele1'] = mut
+        maf_fields['Tumor_Sample_Barcode'] = self.sample_name + "-Tumor"
+        maf_fields['Matched_Norm_Sample_Barcode'] = self.sample_name + "-Normal"
+        maf_fields['Match_Norm_Seq_Allele1'] = ""
+        maf_fields['Match_Norm_Seq_Allele2'] = ""
+        maf_fields['Tumor_Validation_Allele1'] = ''
+        maf_fields['Tumor_Validation_Allele2'] = ''
+        maf_fields['Match_Norm_Validation_Allele1'] = ''
+        maf_fields['Match_Norm_Validation_Allele2'] = ''
+        maf_fields['Verification_Status']= ''
+        maf_fields['Validation_Status']= ''
+        maf_fields['Mutation_Status']= ''
+        maf_fields['Sequencing_Phase']= ''
+        maf_fields['Sequence_Source']= ''
+        maf_fields['Validation_Method'] = ""
+        maf_fields['Score']= ''
+        maf_fields['BAM_File']= ''
+        maf_fields['Sequencer']= ''
+        maf_fields['Tumor_Sample_UUID']= ''
+        maf_fields['Matched_Norm_Sample_UUID']= ''
+        #ordered = ['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chromosome','Start_Position','End_Position','Strand','Variant_Classification','Variant_Type','Reference_Allele','Tumor_Seq_Allele1','Tumor_Seq_Allele2','dbSNP_RS','dbSNP_Val_Status','Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1','Tumor_Validation_Allele2','Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status','Validation_Status','Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File','Sequencer','Tumor_Sample_UUID','Matched_Norm_Sample_UUID']
+        ordered = ['Hugo_Symbol',
+                   'Entrez_Gene_Id',
+                   'Center',
+                   'NCBI_Build',
+                   'Chromosome',
+                   'Start_position',
+                    'End_position',
+                    'Strand',
+                    'Variant_Classification',
+                    'Variant_Type',
+                    'Reference_Allele',
+                    'Tumor_Seq_Allele1',
+                    'Tumor_Seq_Allele2',
+                    'dbSNP_RS',
+                    'dbSNP_Val_Status',
+                    'Tumor_Sample_Barcode',
+                    'Matched_Norm_Sample_Barcode',
+                    'Match_Norm_Seq_Allele1',
+                    'Match_Norm_Seq_Allele2',
+                    'Tumor_Validation_Allele1',
+                    'Tumor_Validation_Allele2',
+                    'Match_Norm_Validation_Allele1',
+                    'Match_Norm_Validation_Allele2',
+                    'Verification_Status',
+                    'Validation_Status',
+                    'Mutation_Status',
+                    'Sequencing_Phase',
+                    'Sequence_Source',
+                    'Validation_Method',
+                    'Score',
+                    'BAM_file',
+                    'Sequencer',
+                    'Genome_Change',
+                    'Annotation_Transcript',
+                    'Transcript_Strand',
+                    'Transcript_Exon',
+                    'Transcript_Position',
+                    'cDNA_Change',
+                    'Codon_Change',
+                    'Protein_Change']
+        maf_return = ""
+        maf_header = ""
+        printed = 0
+        for key in ordered:
+            if not maf_fields.has_key(key):
+                print "key missing: %s"  % key
+                exit()
+            val = maf_fields[key]
+            if not printed:
+                maf_header = str(key)
+                maf_return = str(val)
+                printed = 1
+            else:
+                maf_return = maf_return + "\t" + str(val)
+                maf_header = maf_header + "\t" + key
+        #print self
+        #print maf_header
+        #print maf_return
+        return(maf_header,maf_return)
     def __str__(self):
         return "%s %s %s %s %s" % (self.id, self.chromosome, self.position, self.base_change, self.library_name)
 class SNV(cancerGenomeDB):
@@ -3552,6 +3683,17 @@ class SNV(cancerGenomeDB):
             return -1
         else:
             return 1
+    def liftOver(self,current_build,new_build):
+        '''Run LiftOver such that SNV object has position corrected to a different genome build'''
+        #note, perhaps a SNV object should know/track what genome build it refers to (must be stored in db originally, obviously)
+        from pyliftover import LiftOver
+        lo = LiftOver(current_build, new_build)
+        chrom = self.chromosome_short
+        chrom = "chr" + chrom
+        start = int(self.position)
+        new_pos = lo.convert_coordinate(chrom,start,"+")
+        (new_chrom,new_start,strand,stuff) = new_pos[0]
+        self.position = new_start
     def asMAF(self,for_mutsig = None,fake_id=None):
         '''return MAF formatted version of variant'''
         maf_fields = {}
@@ -3680,23 +3822,23 @@ class SNV(cancerGenomeDB):
         #seq_right = reffile.fetch(self.chromosome_short, self.position,self.position+1)
         #seq_left = reffile.fetch(self.chromosome_short,self.position-1,self.position)
         triplet = reffile.fetch(self.chromosome_short,self.position-2,self.position+1)
-        print triplet
+        #print triplet
         (seq_left,check_ref,seq_right) = list(triplet)
         if not ref == check_ref:
             print "error comparing %s to %s" % (triplet,ref)
         if maf_fields['Variant_Classification'] == 'Nonsense_Mutation':
             category = 7
         elif ref == "C":
-            print "left: %s self: %s right: %s " % (seq_left,ref,seq_right)
+            #print "left: %s self: %s right: %s " % (seq_left,ref,seq_right)
             if seq_right == "G":
-                print "CpG for %s" % self.position
+                #print "CpG for %s" % self.position
                 if mut == "T":
                     #transition
                     category = 1
                 else:
                     category = 2
             else:
-                print "not CpG: %s %s" % (self.position,ref)
+                #print "not CpG: %s %s" % (self.position,ref)
                 if mut == "T":
                     #transition
                     category = 3
@@ -3704,16 +3846,16 @@ class SNV(cancerGenomeDB):
                     category = 4
 
         elif ref == "G":
-            print "left: %s self: %s right: %s " % (seq_left,ref,seq_right)
+            #print "left: %s self: %s right: %s " % (seq_left,ref,seq_right)
             if seq_left == "C":
-                print "CpG for %s" % self.position
+                #print "CpG for %s" % self.position
                 if mut == "A":
                     #transition
                     category = 1
                 else:
                     category = 2
             else:
-                print "not CpG: %s %s" % (self.position,ref)
+                #print "not CpG: %s %s" % (self.position,ref)
                 if mut == "A":
                     #transition
                     category = 3
@@ -3730,7 +3872,7 @@ class SNV(cancerGenomeDB):
                 category = 6
         else:
             category = 7
-        print "category: %s" % category
+        #print "category: %s" % category
         maf_fields['categ'] = category
 
         maf_return = ""
