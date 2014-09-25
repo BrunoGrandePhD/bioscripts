@@ -136,8 +136,9 @@ def parse_maf_row(row):
     """Parse MAF row by creating a dictionary, with a key-value
     pair for each column, according to MAF_FIELDNAMES.
     """
-    row_items = row.rstrip().split('\t')
+    row_items = row.rstrip('\n').split('\t')
     row_dict = dict(zip(MAF_FIELDNAMES, row_items))
+    row_dict['row'] = row
     return row_dict
 
 
@@ -172,16 +173,19 @@ def maf_row_generator(maf_rows):
     """Create generator from list of parsed MAF rows.
     """
     for row in maf_rows:
+        if row['Hugo_Symbol'] == 'Hugo_Symbol':
+            continue
         yield row
 
 
 def recreate_maf_row(row_dict):
     """Recreate a MAF row from a parsed MAF row (dictionary).
     """
-    recreated_row = ''
-    for column in MAF_FIELDNAMES:
-        recreated_row += row_dict[column] + '\t'
-    recreated_row += '\n'
+    # recreated_row = ''
+    # for column in MAF_FIELDNAMES:
+    #     recreated_row += row_dict[column] + '\t'
+    # recreated_row += '\n'
+    recreated_row = row_dict['row']
     return recreated_row
 
 
