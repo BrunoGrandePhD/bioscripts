@@ -22,7 +22,7 @@ library(plyr)
 # selection <- args[2]
 
 cohort_file <- file.path(
-    "/Users/bgrande/Desktop/gene_patient_heatmap/patients.txt"
+    "/Users/bgrande/Desktop/CPCGC_heatmap/cohort.txt"
 )
 
 selection <- as.character(50)
@@ -30,10 +30,12 @@ selection <- as.character(50)
 if (file.exists(selection)) {  
     # The specified argument is a file, so expecting a list of 
     # Ensembl gene IDs
+    print('file')
     interesting_genes <- readLines(selection, n = -1)
 } else if (is.integer(as.integer(selection))) {
     # The specified argument is an integer (N), so displaying 
     # the top N most mutated genes
+    print('number')
     n_plotted_genes <- as.integer(selection)
 } else {
     stop(paste("Specified argument is not a file with a list of Ensembl gene ",
@@ -140,6 +142,7 @@ affected_patients <- within(
 # Selecting the top N genes based, if specified -------------------
 
 if (exists("n_plotted_genes")) {
+    print('working')
     plotted_genes <- droplevels(
         arrange(
             affected_patients, 
@@ -148,6 +151,8 @@ if (exists("n_plotted_genes")) {
         )[1:n_plotted_genes,][,1]
     )
 }
+
+print(affected_patients)
 
 plotted_genes_per_patient <- genes_per_patient[
     genes_per_patient$Entrez_Gene_Id %in% plotted_genes, 
@@ -214,25 +219,6 @@ ggplot_data_fixed <- merge(ggplot_data, all_combinations,
 calculated_width = 0.173 * nlevels(ggplot_data_fixed$patient_name) + 3.7
 calculated_height = 0.173 * nlevels(ggplot_data_fixed$gene_name) + 2
 
-ggsave(file="~/Desktop/gene_patient_heatmap/figure.pdf",
-       width = calculated_width, height = calculated_height)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ggsave(file="figure.pdf",
+       width = calculated_width, height = calculated_height,
+       limitsize=FALSE)
